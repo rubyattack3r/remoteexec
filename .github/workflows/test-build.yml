@@ -1,0 +1,14 @@
+name: Test build
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: GoReleaser snapshot
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      goreleaser_options: --clean --snapshot

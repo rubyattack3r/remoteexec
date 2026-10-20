@@ -1,0 +1,28 @@
+site_name: remoteexec
+site_description: Authorized Windows remote-execution assessment tooling
+repo_url: https://github.com/rubyattack3r/remoteexec
+theme:
+  name: material
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+  - Techniques:
+      - WMI Provider: techniques/wmiprovider.md
+      - WMI Service: techniques/wmiservice.md
+      - WMI Exec: techniques/wmiexec.md
+      - WSMan Exec: techniques/wsmanexec.md
+      - Task Scheduler: techniques/taskschedexec.md
+      - DCOM IShellDispatch2: techniques/dcomishelldispatch2.md
+      - SCM Change Service: techniques/scmchangeservice.md
+      - SCM Create Service: techniques/scmcreateservice.md
+      - SSH Exec: techniques/sshexec.md
+  - Configuration: configuration.md
+  - LOLBins: lolbins.md
+  - Output: output.md
+  - Operator Recovery: recovery.md

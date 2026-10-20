@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    uses: ./.github/workflows/verify.yml
+
+  build:
+    name: Test build
+    uses: ./.github/workflows/test-build.yml
+
+  docs:
+    name: Test docs
+    uses: ./.github/workflows/test-docs.yml

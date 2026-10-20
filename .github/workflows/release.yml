@@ -1,0 +1,14 @@
+name: Release
+
+on:
+  workflow_call:
+
+jobs:
+  release:
+    name: Release
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      goreleaser_options: --clean
+    permissions:
+      contents: write # Upload archives as release assets
+      id-token: write # Keyless cosign signing

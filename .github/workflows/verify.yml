@@ -1,0 +1,52 @@
+name: Verify
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Format, vet, and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Format
+        run: test -z "$(gofmt -l .)"
+      - name: Enforce feature boundaries
+        run: |
+          if rg 'internal/exec/windows/' internal/exec/engine internal/exec/credentials internal/exec/model internal/exec/plan internal/exec/target internal/exec/technique; then
+            echo 'shared execution packages must not import Windows implementations'
+            exit 1
+          fi
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+      - name: Build
+        run: go build ./...
+
+  windows-experimental:
+    name: Windows experimental backend
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Vet
+        run: go vet -tags remoteexec_experimental ./...
+      - name: Test
+        run: go test -tags remoteexec_experimental ./...
+      - name: Build
+        run: go build -tags remoteexec_experimental ./...

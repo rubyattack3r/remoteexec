@@ -1,0 +1,6 @@
+/bin/
+/dist/
+/coverage.out
+*.exe
+*.dll
+/.local/
