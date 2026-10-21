@@ -58,9 +58,15 @@ go build -o remoteexec .
   --payload-type service --payload ./svc.exe \
   --remote-path 'C:\Windows\Temp\svc.exe' --service-name RemoteExecTmp \
   --domain CORP --username admin --password 'Passw0rd!' --dry-run
+
+# Read the password from stdin instead of the command line.
+./remoteexec exec technique --targets 10.0.0.15 --technique WMIExec \
+  --payload-type command --command 'whoami.exe /all' \
+  --domain CORP --username admin --password-stdin < password.txt
 ```
 
-Avoid passing passwords directly on the command line. Use `--password-stdin` to keep them out of shell history.
+> [!TIP]
+> Avoid passing passwords directly on the command line, where they leak into shell history and process listings. Use `--password-stdin` instead; it cannot be combined with `--password` or `--private-key`.
 
 See the [documentation index](docs/index.md), [tested platforms](docs/platforms.md), [launcher reference](docs/launchers/index.md), [launcher authoring guide](docs/launchers/authoring.md), [runtime configuration](docs/configuration.md), [architecture](docs/architecture.md), [output schema](docs/output.md), and [operator recovery guide](docs/recovery.md).
 
