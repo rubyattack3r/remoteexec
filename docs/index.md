@@ -26,6 +26,6 @@ Additional references:
 - [Tested operating systems and build-specific limitations](platforms.md)
 - [SSH command execution](techniques/sshexec.md)
 - [Operator recovery](recovery.md)
-- [Acceptable Use Policy](https://github.com/rubyattack3r/remoteexec/blob/develop/ACCEPTABLE_USE_POLICY.md)
+- [Acceptable Use Policy](https://github.com/rubyattack3r/remoteexec/blob/main/ACCEPTABLE_USE_POLICY.md)
 
 Windows builds include the native execution backend. Linux and macOS builds support the command-only `SSHExec` technique. `--dry-run` is an explicit operator choice that validates prerequisites and emits a plan without changing the target.

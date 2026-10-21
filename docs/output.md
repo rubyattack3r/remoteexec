@@ -70,12 +70,12 @@ Each evidence item names its `source`, `outcome`, redacted `invocation_id`, and 
 
 | Artifact `kind` | `location` | `original` |
 | --- | --- | --- |
-| `staged_file` | Remote file path; `digest` is `sha256:<hex>` | `absent` |
+| `staged_file` | Remote file path; `digest` is `sha256:HEX` | `absent` |
 | `verify_marker` | Remote marker file path | — |
 | `scheduled_task` | Task name | `absent` |
 | `temporary_service` | Service name | `absent` |
 | `service_path` | Service name | Prior URL-escaped service configuration |
-| `service_start` | `<service>:start` | Prior run state |
+| `service_start` | `SERVICE:start` | Prior run state |
 | `wmi_provider` | Provider name | `absent` |
 | `registry_key` | Registry path | `absent` |
 

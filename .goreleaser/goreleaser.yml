@@ -5,7 +5,7 @@ project_name: remoteexec
 
 builds:
   - id: remoteexec
-    main: .
+    main: ./cmd/remoteexec
     binary: remoteexec
     env:
       - CGO_ENABLED=0

@@ -26,6 +26,8 @@ Hide
 Type `Set-Location C:\; Clear-Host`
 Enter
 Sleep 500ms
+Ctrl+L
+Sleep 500ms
 Show
 
 Type `remoteexec.exe exec technique --targets wks01 --technique WMIExec --payload-type command --command "cmd.exe /c whoami.exe" --auth token --output yaml`

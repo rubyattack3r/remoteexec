@@ -1,7 +1,8 @@
 .PHONY: build clean demo fmt lint test verify snapshot
 
 build:
-	go build -o bin/remoteexec .
+	mkdir -p bin
+	go build -trimpath -o bin/remoteexec ./cmd/remoteexec
 
 clean:
 	go clean
@@ -11,7 +12,7 @@ demo:
 	@command -v powershell >/dev/null || { echo 'Record the demo from an authorized Windows operator host with PowerShell.' >&2; exit 1; }
 	@command -v remoteexec.exe >/dev/null || { echo 'Place remoteexec.exe on PATH before recording the demo.' >&2; exit 1; }
 	mkdir -p docs/assets
-	vhs scripts/vhs/demo.tape
+	vhs docs/demo.tape
 
 fmt:
 	gofmt -w $$(git ls-files '*.go')

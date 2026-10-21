@@ -32,3 +32,32 @@ Repository development scripts may write reproducible output there, but shipped
 runtime behavior and documentation must not require or link to `.scratch/`.
 Gitignored does not mean secure: do not use `.scratch/` or `.wiki/` as a secret
 store.
+
+## Project layout
+
+- `cmd/remoteexec/` is the thin executable entrypoint.
+- `cmd/` owns Cobra commands and flag-to-request translation. It must
+  remain independent of individual technique implementations.
+- `internal/exec/` owns shared execution contracts, the technique registry and
+  platform adapters. Platform-specific behavior belongs below its platform
+  package; do not leak native API details into the CLI layer.
+- `internal/output/` owns versioned result serialization. Treat its exported
+  schema as a public compatibility boundary.
+- `testdata/` contains benign, tracked fixtures and source. Generated binaries,
+  live-target configuration and test logs belong in `.scratch/`.
+- `docs/` is the Docusaurus source and includes the locally recorded VHS demo.
+  Update code, operator documentation and recovery guidance together when a
+  public contract changes.
+
+Prefer registry-driven extension points over selector switches in Cobra. Keep
+preflight read-only and complete it before staging or mutation. Execution must
+return enough structured evidence to distinguish an invocation from a confirmed
+remote outcome, and recovery records must identify reversible state without
+copying secrets or raw command lines.
+
+## Validation
+
+Run `make verify` for Go formatting, vetting, race-enabled tests and the CLI
+build. When documentation changes, also run `npm ci` and `npm run build` with
+the Node version declared in `package.json`. Before release, run the GoReleaser
+snapshot workflow and cross-build the Windows entrypoint.

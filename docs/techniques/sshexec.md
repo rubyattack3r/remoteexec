@@ -54,7 +54,7 @@ sequenceDiagram
 | PTY | Not requested |
 | Recovery | No remoteexec-managed persistent artifact; command-specific effects remain the operator's responsibility |
 
-The result contains `execution` evidence whose `invocation_id` is `command:sha256:<hex>`. A successful SSH request reports `disposition: completed`, `exit_code: 0`, and `process_id_status: not_provided_by_api`. Raw command text and arguments are not retained. SSH does not return a portable remote PID for this request.
+The result contains `execution` evidence whose `invocation_id` is `command:sha256:HEX`. A successful SSH request reports `disposition: completed`, `exit_code: 0`, and `process_id_status: not_provided_by_api`. Raw command text and arguments are not retained. SSH does not return a portable remote PID for this request.
 
 ## Server identity boundary
 

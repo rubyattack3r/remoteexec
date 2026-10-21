@@ -1,6 +1,8 @@
 /bin/
 /dist/
-/site/
+/build/
+/.docusaurus/
+/node_modules/
 /coverage.out
 *.exe
 *.dll

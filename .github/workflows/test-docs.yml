@@ -7,20 +7,17 @@ permissions:
   contents: read
 
 jobs:
-  mkdocs:
-    name: MkDocs strict build
+  docusaurus:
+    name: Docusaurus build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          python-version: '3.x'
-          cache: pip
-          cache-dependency-path: docs/requirements.txt
-      - name: Install dependencies
-        run: pip install --requirement docs/requirements.txt
+          node-version: 22
+          cache: npm
       - name: Check technique diagrams
         run: |
           for page in docs/techniques/*.md; do
@@ -30,4 +27,6 @@ jobs:
             }
           done
       - name: Build documentation
-        run: mkdocs build --strict
+        run: |
+          npm ci
+          npm run build

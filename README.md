@@ -26,7 +26,7 @@ Windows builds include the native WMI, WinRM, DCOM, Task Scheduler, and SCM exec
 ## Quick Start
 
 ```bash
-go build -o remoteexec .
+go build -o remoteexec ./cmd/remoteexec
 
 # Inventory techniques and the telemetry they generate.
 ./remoteexec exec techniques --output yaml
@@ -68,11 +68,11 @@ go build -o remoteexec .
 > [!TIP]
 > Avoid passing passwords directly on the command line, where they leak into shell history and process listings. Use `--password-stdin` instead; it cannot be combined with `--password` or `--private-key`.
 
-See the [documentation index](docs/index.md), [tested platforms](docs/platforms.md), [launcher reference](docs/launchers/index.md), [launcher authoring guide](docs/launchers/authoring.md), [runtime configuration](docs/configuration.md), [architecture](docs/architecture.md), [output schema](docs/output.md), and [operator recovery guide](docs/recovery.md).
+See the [documentation index](docs/index.md), [tested platforms](docs/platforms.md), [launcher reference](docs/launchers/index.md), [launcher authoring guide](docs/launchers/authoring.md), [runtime configuration](docs/configuration.md), [architecture](docs/architecture.md), [output schema](docs/output.md), [operator recovery guide](docs/recovery.md), and [changelog](CHANGELOG.md).
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and run `make lint test` before opening a PR. To re-record the demo GIF, run `make demo` (requires [VHS](https://github.com/charmbracelet/vhs)).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and run `make verify` before opening a PR. To re-record the demo GIF, follow the [development setup](docs/development/setup.md#record-the-demo).
 
 ## Community
 

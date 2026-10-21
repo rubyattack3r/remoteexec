@@ -9,6 +9,7 @@ jobs:
     uses: ./.github/workflows/reusable-build.yml
     with:
       goreleaser_options: --clean
+      release_notes_from_changelog: true
     permissions:
       contents: write # Upload archives as release assets
       id-token: write # Keyless cosign signing
