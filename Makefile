@@ -6,12 +6,12 @@ build:
 clean:
 	go clean
 
-demo: build
+demo:
 	@command -v vhs >/dev/null || { echo 'Install VHS (https://github.com/charmbracelet/vhs) to record the demo.' >&2; exit 1; }
-	@test -r "$$HOME/.ssh/remoteexec_demo" || { echo 'Configure the demo private key at ~/.ssh/remoteexec_demo.' >&2; exit 1; }
-	@getent hosts server01 >/dev/null || { echo 'Configure server01 as an authorized SSH test target.' >&2; exit 1; }
+	@command -v powershell >/dev/null || { echo 'Record the demo from an authorized Windows operator host with PowerShell.' >&2; exit 1; }
+	@command -v remoteexec.exe >/dev/null || { echo 'Place remoteexec.exe on PATH before recording the demo.' >&2; exit 1; }
 	mkdir -p docs/assets
-	PATH="$(CURDIR)/bin:$$PATH" vhs scripts/vhs/demo.tape
+	vhs scripts/vhs/demo.tape
 
 fmt:
 	gofmt -w $$(git ls-files '*.go')

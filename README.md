@@ -15,9 +15,9 @@ Cross-platform remote-execution assessment tooling for authorized red-team engag
 
 remoteexec wraps remote-execution primitives in a single CLI. Windows is the main focus today (WMI, WinRM, DCOM, Task Scheduler, and SCM). SSH command execution is implemented for Linux, macOS, and Windows OpenSSH; current live validation covers Linux and Windows OpenSSH, while macOS remains untested. Every target is validated before anything runs, and results come back as JSON, YAML, or Signal.
 
-![remoteexec completing a live SSHExec command](docs/assets/demo.gif)
+![remoteexec dispatching a live WMIExec command from Windows](docs/assets/demo.gif)
 
-The demo executes a benign command over SSH and reports completed execution with exit-code evidence using the shared `0.2.0` result contract.
+The demo dispatches a benign command through WMI from a Windows operator host and reports the process identifier returned by `Win32_Process.Create` using the shared `0.2.0` result contract.
 
 ## Execution model
 

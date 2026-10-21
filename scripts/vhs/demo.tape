@@ -1,12 +1,12 @@
-# Run from the repository root with `make demo` after configuring `server01`
-# for SSH public-key authentication with `~/.ssh/remoteexec_demo`.
-# Executes a benign command through SSHExec and shows the shared result schema.
+# Run from an authorized Windows operator host with `make demo` after placing
+# `remoteexec.exe` on PATH and configuring token access to `wks01`.
+# Dispatches a benign command through WMIExec and shows the returned evidence.
 Output docs/assets/demo.gif
 
-Require remoteexec
-Require bash
+Require remoteexec.exe
+Require powershell
 
-Set Shell "bash"
+Set Shell "powershell"
 Set FontFamily "JetBrains Mono"
 Set FontSize 22
 Set Width 1800
@@ -23,11 +23,11 @@ Set TypingSpeed 25ms
 Set CursorBlink false
 
 Hide
-Type `unset PROMPT_COMMAND NO_COLOR; export TERM=xterm-256color; PS1='\[\033[38;5;209m\]❯\[\033[0m\] '; clear`
+Type `$env:Path += ";C:\Windows\Temp"; function prompt { "PS C:\> " }; Clear-Host`
 Enter
 Sleep 500ms
 Show
 
-Type `remoteexec exec technique --targets server01 --technique SSHExec --payload-type command --command "uname -a" --username operator --private-key ~/.ssh/remoteexec_demo --output yaml`
+Type `remoteexec.exe exec technique --targets wks01 --technique WMIExec --payload-type command --command "cmd.exe /c whoami.exe" --auth token --output yaml`
 Enter
 Sleep 5s
