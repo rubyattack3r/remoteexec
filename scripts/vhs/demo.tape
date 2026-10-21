@@ -1,6 +1,6 @@
-# Run from the repository root with `make demo`.
-# Validates a command-only WMIExec plan and shows the shared result schema.
-# This is a dry run; nothing is staged or executed on the target.
+# Run from the repository root with `make demo` after configuring `server01`
+# for SSH public-key authentication with `~/.ssh/remoteexec_demo`.
+# Executes a benign command through SSHExec and shows the shared result schema.
 Output docs/assets/demo.gif
 
 Require remoteexec
@@ -28,6 +28,6 @@ Enter
 Sleep 500ms
 Show
 
-Type `remoteexec exec technique --targets server01 --technique WMIExec --payload-type command --command "whoami.exe /all" --auth token --dry-run --output yaml`
+Type `remoteexec exec technique --targets server01 --technique SSHExec --payload-type command --command "uname -a" --username operator --private-key ~/.ssh/remoteexec_demo --output yaml`
 Enter
 Sleep 5s
