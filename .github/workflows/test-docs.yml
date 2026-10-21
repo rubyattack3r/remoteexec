@@ -7,17 +7,12 @@ permissions:
   contents: read
 
 jobs:
-  docusaurus:
-    name: Docusaurus build
+  markdown:
+    name: Markdown checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      - name: Set up Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 22
-          cache: npm
       - name: Check technique diagrams
         run: |
           for page in docs/techniques/*.md; do
@@ -26,7 +21,24 @@ jobs:
               exit 1
             }
           done
-      - name: Build documentation
+      - name: Check local links
         run: |
-          npm ci
-          npm run build
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import urllib.parse
+
+          missing = []
+          pages = [pathlib.Path("README.md"), *pathlib.Path("docs").rglob("*.md")]
+          for page in pages:
+              text = page.read_text(encoding="utf-8")
+              for raw in re.findall(r"!?\[[^]]*\]\(([^)]+)\)", text):
+                  target = raw.strip("<>").split("#", 1)[0].split("?", 1)[0]
+                  if not target or "://" in target or target.startswith("mailto:"):
+                      continue
+                  resolved = (page.parent / urllib.parse.unquote(target)).resolve()
+                  if not resolved.exists():
+                      missing.append(f"{page}: {raw}")
+          if missing:
+              raise SystemExit("missing local Markdown links:\n" + "\n".join(missing))
+          PY

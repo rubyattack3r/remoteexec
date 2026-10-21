@@ -3,8 +3,8 @@
 ## Toolchain
 
 Use the Go version declared in
-[`go.mod`](https://github.com/rubyattack3r/remoteexec/blob/main/go.mod) and Node.js 22.12 or newer
-for the Docusaurus site. Release snapshots also require GoReleaser.
+[`go.mod`](https://github.com/rubyattack3r/remoteexec/blob/main/go.mod).
+Release snapshots also require GoReleaser.
 
 ## Build and validate
 
@@ -15,18 +15,11 @@ make verify
 
 `make verify` checks formatting, runs `go vet`, runs the race-enabled test
 suite, and builds `bin/remoteexec` from `cmd/remoteexec`. CI repeats those
-checks on Linux, exercises the native backend on Windows, builds the Docusaurus
-site, and creates a GoReleaser snapshot.
+checks on Linux, exercises the native backend on Windows, validates local
+Markdown links and technique diagrams, and creates a GoReleaser snapshot.
 
-Build or preview the documentation with:
-
-```bash
-npm ci
-npm run build
-npm run start
-```
-
-Use `npm run serve` to preview the production build locally.
+Documentation is ordinary Markdown under `docs/` and is rendered directly by
+GitHub. It has no separate package manager or site build.
 
 ## Windows fixtures
 
