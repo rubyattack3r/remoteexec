@@ -23,7 +23,7 @@ Set TypingSpeed 25ms
 Set CursorBlink false
 
 Hide
-Type `$env:Path += ";C:\Windows\Temp"; function prompt { "PS C:\> " }; Clear-Host`
+Type `Set-Location C:\; Clear-Host`
 Enter
 Sleep 500ms
 Show
