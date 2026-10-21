@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/rubyattack3r/remoteexec/internal/exec/engine"
@@ -20,6 +21,8 @@ const (
 	wsmanCallbackEnd    = 0x1
 	wsmanWaitIntervalMS = 100
 	wsmanDefaultAuth    = 0
+	wsmanDataDWORD      = 4
+	wsmanOptionTimeout  = 1
 )
 
 var (
@@ -27,9 +30,12 @@ var (
 	procWSManInitialize      = modWSMan.NewProc("WSManInitialize")
 	procWSManDeinitialize    = modWSMan.NewProc("WSManDeinitialize")
 	procWSManCreateSession   = modWSMan.NewProc("WSManCreateSession")
+	procWSManSetSessionOpt   = modWSMan.NewProc("WSManSetSessionOption")
 	procWSManCloseSession    = modWSMan.NewProc("WSManCloseSession")
 	procWSManCreateShell     = modWSMan.NewProc("WSManCreateShell")
 	procWSManRunShellCommand = modWSMan.NewProc("WSManRunShellCommand")
+	procWSManReceiveOutput   = modWSMan.NewProc("WSManReceiveShellOutput")
+	procWSManCloseOperation  = modWSMan.NewProc("WSManCloseOperation")
 	procWSManCloseCommand    = modWSMan.NewProc("WSManCloseCommand")
 	procWSManCloseShell      = modWSMan.NewProc("WSManCloseShell")
 	procRtlMoveMemory        = windows.NewLazySystemDLL("ntdll.dll").NewProc("RtlMoveMemory")
@@ -60,18 +66,35 @@ type wsmanShellAsync struct {
 	completion       uintptr
 }
 
-type wsmanOperation struct {
-	event  windows.Handle
-	code   uint32
-	detail string
+// wsmanData mirrors WSMAN_DATA. Its anonymous union is two pointer-sized
+// words on both supported Windows architectures.
+type wsmanData struct {
+	kind  uint32
+	value [2]uintptr
 }
 
-func newWSManOperation() (*wsmanOperation, wsmanShellAsync, error) {
+type wsmanReceiveDataResult struct {
+	streamID     *uint16
+	streamData   wsmanData
+	commandState *uint16
+	exitCode     uint32
+}
+
+type wsmanOperation struct {
+	event           windows.Handle
+	code            uint32
+	detail          string
+	receive         bool
+	commandDone     bool
+	commandExitCode uint32
+}
+
+func newWSManOperation(receive bool) (*wsmanOperation, wsmanShellAsync, error) {
 	event, err := windows.CreateEvent(nil, 0, 0, nil)
 	if err != nil {
 		return nil, wsmanShellAsync{}, errs.Wrap(errs.Execution, err)
 	}
-	op := &wsmanOperation{event: event}
+	op := &wsmanOperation{event: event, receive: receive}
 	wsmanOperations.Store(uintptr(event), op)
 	return op, wsmanShellAsync{operationContext: uintptr(event), completion: wsmanCallback}, nil
 }
@@ -81,7 +104,7 @@ func (op *wsmanOperation) close() {
 	_ = windows.CloseHandle(op.event)
 }
 
-func (op *wsmanOperation) wait(ctx context.Context, operation string) error {
+func (op *wsmanOperation) wait(ctx context.Context, operation string, cancel func()) error {
 	for {
 		status, err := windows.WaitForSingleObject(op.event, wsmanWaitIntervalMS)
 		if err != nil {
@@ -97,6 +120,10 @@ func (op *wsmanOperation) wait(ctx context.Context, operation string) error {
 			}
 			return nil
 		case uint32(windows.WAIT_TIMEOUT):
+			if err := ctx.Err(); err != nil && cancel != nil {
+				cancel()
+				return errs.Wrap(errs.Execution, err)
+			}
 			// The native stack retains the callback context until completion;
 			// continue waiting safely, then report any caller cancellation.
 			continue
@@ -106,7 +133,7 @@ func (op *wsmanOperation) wait(ctx context.Context, operation string) error {
 	}
 }
 
-func wsmanCompletion(operationContext, flags, errorPointer, _, _, _, _ uintptr) uintptr {
+func wsmanCompletion(operationContext, flags, errorPointer, _, _, _, dataPointer uintptr) uintptr {
 	value, ok := wsmanOperations.Load(operationContext)
 	if !ok {
 		return 0
@@ -122,25 +149,99 @@ func wsmanCompletion(operationContext, flags, errorPointer, _, _, _, _ uintptr) 
 			op.detail = windows.UTF16PtrToString(apiError.errorDetail)
 		}
 	}
-	if flags&wsmanCallbackEnd != 0 || op.code != 0 {
+	if op.receive && dataPointer != 0 {
+		var data wsmanReceiveDataResult
+		procRtlMoveMemory.Call(
+			uintptr(unsafe.Pointer(&data)), dataPointer, unsafe.Sizeof(data),
+		)
+		if data.commandState != nil && strings.HasSuffix(
+			windows.UTF16PtrToString(data.commandState), "/CommandState/Done",
+		) {
+			op.commandDone = true
+			op.commandExitCode = data.exitCode
+		}
+	}
+	if flags&wsmanCallbackEnd != 0 || op.code != 0 || op.commandDone {
 		_ = windows.SetEvent(op.event)
 	}
 	return 0
 }
 
 func callWSManAsync(ctx context.Context, operation string, invoke func(*wsmanShellAsync)) error {
-	op, async, err := newWSManOperation()
+	op, async, err := newWSManOperation(false)
 	if err != nil {
 		return err
 	}
 	defer op.close()
 	invoke(&async)
 	runtime.KeepAlive(async)
-	if err := op.wait(ctx, operation); err != nil {
+	if err := op.wait(ctx, operation, nil); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return errs.Wrap(errs.Execution, err)
+	}
+	return nil
+}
+
+func receiveWSManCommand(ctx context.Context, shell, command uintptr) error {
+	op, async, err := newWSManOperation(true)
+	if err != nil {
+		return err
+	}
+	defer op.close()
+
+	var receiveOperation uintptr
+	procWSManReceiveOutput.Call(
+		shell, command, 0, 0, uintptr(unsafe.Pointer(&async)),
+		uintptr(unsafe.Pointer(&receiveOperation)),
+	)
+	runtime.KeepAlive(async)
+	operationClosed := false
+	closeOperation := func() {
+		if receiveOperation != 0 && !operationClosed {
+			procWSManCloseOperation.Call(receiveOperation, 0)
+			operationClosed = true
+		}
+	}
+	defer closeOperation()
+	if err := op.wait(ctx, "WSManReceiveShellOutput", closeOperation); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return errs.Wrap(errs.Execution, err)
+	}
+	if !op.commandDone {
+		return errs.New(errs.Execution, "WSMan command ended without a completion state")
+	}
+	if op.commandExitCode != 0 {
+		return errs.New(errs.Execution, "WSMan command exited with code %d", op.commandExitCode)
+	}
+	return nil
+}
+
+func setWSManSessionTimeout(ctx context.Context, session uintptr) error {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return nil
+	}
+	remaining := time.Until(deadline)
+	if remaining <= 0 {
+		return errs.Wrap(errs.Execution, context.DeadlineExceeded)
+	}
+	milliseconds := remaining.Milliseconds()
+	if milliseconds < 1 {
+		milliseconds = 1
+	}
+	if milliseconds > int64(4294967295) {
+		milliseconds = int64(4294967295)
+	}
+	data := wsmanData{kind: wsmanDataDWORD}
+	data.value[0] = uintptr(uint32(milliseconds))
+	if code, _, _ := procWSManSetSessionOpt.Call(
+		session, wsmanOptionTimeout, uintptr(unsafe.Pointer(&data)),
+	); code != 0 {
+		return errs.New(errs.Execution, "WSManSetSessionOption timeout failed (code %d)", code)
 	}
 	return nil
 }
@@ -202,6 +303,9 @@ func wsmanCommand(ctx context.Context, target, user, domain, password, commandLi
 	runtime.KeepAlive(usernamePointer)
 	runtime.KeepAlive(passwordPointer)
 	defer procWSManCloseSession.Call(session, 0)
+	if err := setWSManSessionTimeout(ctx, session); err != nil {
+		return err
+	}
 
 	resourceURI, _ := windows.UTF16PtrFromString(shellResourceURI)
 	var shell uintptr
@@ -238,5 +342,5 @@ func wsmanCommand(ctx context.Context, target, user, domain, password, commandLi
 		})
 	}()
 	runtime.KeepAlive(commandLinePointer)
-	return nil
+	return receiveWSManCommand(ctx, shell, command)
 }

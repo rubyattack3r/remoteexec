@@ -34,4 +34,4 @@ For file payloads, remove the staged file after the process releases it. Command
 
 ## Detection considerations
 
-Relative detectability: **high**. Remote WMI process creation is well-signatured. Command mode removes SMB staging, DLL image-load, and LOLBAS signals, but the WMI invocation and resulting command line remain detectable.
+Remote WMI process creation is well-signatured. Command mode removes SMB staging, DLL image-load, and LOLBAS signals, but the WMI invocation and resulting command line remain detectable.

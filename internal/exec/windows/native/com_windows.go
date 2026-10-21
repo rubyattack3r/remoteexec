@@ -179,10 +179,10 @@ func setProxyAuthentication(dispatch *ole.IDispatch, identity *authIdentity) err
 	return nil
 }
 
-// shellExecuteRemote activates ShellWindows on the target through DCOM,
-// resolves the active Explorer window's IShellDispatch2 interface, and calls
-// ShellExecute. This requires an interactive shell on the target.
-func shellExecuteRemote(target, exe, args, user, domain, password string) error {
+// withRemoteShellApplication activates ShellWindows on the target through
+// DCOM and resolves the active Explorer window's IShellDispatch2 interface.
+// Resolving the interface is read-only and can therefore be used by preflight.
+func withRemoteShellApplication(target, user, domain, password string, use func(*ole.IDispatch) error) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err != nil {
@@ -286,10 +286,20 @@ func shellExecuteRemote(target, exe, args, user, domain, password string) error 
 	if err := setProxyAuthentication(application, proxyIdentity); err != nil {
 		return err
 	}
-	result, err := oleutil.CallMethod(application, "ShellExecute", exe, args, "", "open", 0)
-	if err != nil {
-		return errs.Wrap(errs.Execution, err)
-	}
-	result.Clear()
-	return nil
+	return use(application)
+}
+
+func shellAvailableRemote(target, user, domain, password string) error {
+	return withRemoteShellApplication(target, user, domain, password, func(*ole.IDispatch) error { return nil })
+}
+
+func shellExecuteRemote(target, exe, args, user, domain, password string) error {
+	return withRemoteShellApplication(target, user, domain, password, func(application *ole.IDispatch) error {
+		result, err := oleutil.CallMethod(application, "ShellExecute", exe, args, "", "open", 0)
+		if err != nil {
+			return errs.Wrap(errs.Execution, err)
+		}
+		result.Clear()
+		return nil
+	})
 }

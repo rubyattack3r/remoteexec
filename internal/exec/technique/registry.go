@@ -65,8 +65,7 @@ type Descriptor struct {
 	Invocations   map[payload.Kind]InvocationMode `json:"invocations" yaml:"invocations"`
 	Payloads      []payload.Kind                  `json:"payload_types" yaml:"payload_types"`
 	Recovery      string                          `json:"recovery" yaml:"recovery"`
-	OPSEC         string                          `json:"opsec" yaml:"opsec"`
-	Detection     string                          `json:"detection" yaml:"detection"`
+	Telemetry     string                          `json:"telemetry" yaml:"telemetry"`
 	Requirements  []Requirement                   `json:"-" yaml:"-"`
 }
 
@@ -104,8 +103,8 @@ func validateDescriptor(d Descriptor) error {
 	if strings.TrimSpace(d.Name) == "" || strings.TrimSpace(d.Title) == "" {
 		return errors.New("technique descriptor requires name and title")
 	}
-	if len(d.Prerequisites) == 0 || len(d.Requirements) == 0 || d.Privilege == "" || len(d.Surface) == 0 || d.Recovery == "" || d.OPSEC == "" || d.Detection == "" {
-		return fmt.Errorf("technique %q has incomplete prerequisite, surface, recovery, or detection metadata", d.Name)
+	if len(d.Prerequisites) == 0 || len(d.Requirements) == 0 || d.Privilege == "" || len(d.Surface) == 0 || d.Recovery == "" || d.Telemetry == "" {
+		return fmt.Errorf("technique %q has incomplete prerequisite, surface, recovery, or telemetry metadata", d.Name)
 	}
 	if len(d.Platforms) == 0 || !d.FileDelivery.Valid() || len(d.Payloads) == 0 {
 		return fmt.Errorf("technique %q has incomplete platform, transport, or delivery metadata", d.Name)

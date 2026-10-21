@@ -32,4 +32,4 @@ Restore the complete original service configuration and prior running state, the
 
 ## Detection considerations
 
-Relative detectability: **high**. Service configuration changes, unusual image paths, WMI administration, and service starts are well-signatured. Reusing a commonly modified service may change baseline rarity, but does not remove host telemetry.
+Service configuration changes, unusual image paths, WMI administration, and service starts are well-signatured. Reusing a commonly modified service may change baseline rarity, but does not remove host telemetry.

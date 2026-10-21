@@ -47,6 +47,9 @@ func TestCommandSurfaceHasNoAutomaticCleanupOrJournalFlags(t *testing.T) {
 	if execCommand.Flags().Lookup("journal-dir") != nil {
 		t.Fatal("journal directory flag must not be exposed")
 	}
+	if execCommand.Flags().Lookup("nt-hash") != nil {
+		t.Fatal("unsupported NT-hash flag must not be exposed")
+	}
 }
 
 func TestSSHSurfaceDoesNotExposeHostKeyState(t *testing.T) {

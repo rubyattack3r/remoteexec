@@ -165,8 +165,8 @@ func (e Engine) Prepare(ctx context.Context, opts Options) ([]Prepared, error) {
 			return nil, err
 		}
 	} else if auth == AuthToken {
-		if opts.Credentials.Username != "" || opts.Credentials.Password != "" || opts.Credentials.NTHash != "" || opts.Credentials.PrivateKeyPath != "" {
-			return nil, errors.New("credential validation: --auth token takes no identity; unset --username/--password/--nt-hash/--private-key")
+		if opts.Credentials.Username != "" || opts.Credentials.Password != "" || opts.Credentials.PrivateKeyPath != "" {
+			return nil, errors.New("credential validation: --auth token takes no identity; unset --username/--password/--private-key")
 		}
 	} else if auth != AuthCredential {
 		return nil, fmt.Errorf("credential validation: unsupported --auth %q (use credential or token)", auth)
@@ -251,7 +251,7 @@ func (e Engine) Prepare(ctx context.Context, opts Options) ([]Prepared, error) {
 	}
 	// Preflight every target before executing any target. This is the no-partial-execution boundary.
 	if !opts.DryRun && e.Backend == nil {
-		return nil, errors.New("execution backend unavailable in this build; use --dry-run to validate plans")
+		return nil, errors.New("execution backend unavailable on this platform; use --dry-run to validate plans")
 	}
 	if e.Backend != nil {
 		digest := ""
@@ -309,15 +309,13 @@ func (e Engine) Run(ctx context.Context, opts Options) ([]model.Result, error) {
 			continue
 		}
 		artifacts, execErr := e.Backend.Execute(ctx, p, opts.Credentials)
-		if artifacts != nil {
-			result.Artifacts = artifacts
-		}
 		result.Status = model.StatusSucceeded
 		if execErr != nil {
 			result.Status = model.StatusFailed
 			result.Error = executionError(execErr)
 			result.ErrorKind = errs.CategoryOf(execErr)
 		}
+		result.Execution, result.Recovery = classifyOutcome(p.Technique.Name, artifacts, execErr)
 		result.FinishedAt = time.Now().UTC()
 		results = append(results, result)
 		if index < len(prepared)-1 && opts.Sleep > 0 {
@@ -335,7 +333,9 @@ func (e Engine) Run(ctx context.Context, opts Options) ([]model.Result, error) {
 func newResult(p Prepared, started time.Time) model.Result {
 	return model.Result{
 		SchemaVersion: model.SchemaVersion, Technique: p.Technique.Name, Target: p.Target, RunID: p.Report.RunID,
-		PayloadType: p.Payload.Kind, StartedAt: started, Artifacts: []model.Artifact{},
+		PayloadType: p.Payload.Kind, StartedAt: started,
+		Execution: model.Execution{Disposition: model.DispositionPlanned, Evidence: []model.ExecutionEvidence{}},
+		Recovery:  model.Recovery{Artifacts: []model.Artifact{}, Constraints: []model.RecoveryConstraint{}},
 	}
 }
 
@@ -349,10 +349,89 @@ func notAttempted(prepared []Prepared, cause error) []model.Result {
 		result.Status = model.StatusFailed
 		result.Error = "not attempted: " + executionError(cause)
 		result.ErrorKind = errs.Execution
+		result.Execution.Disposition = model.DispositionNotAttempted
 		result.FinishedAt = now
 		results = append(results, result)
 	}
 	return results
+}
+
+func classifyOutcome(selector string, artifacts []model.Artifact, execErr error) (model.Execution, model.Recovery) {
+	execution := model.Execution{Disposition: model.DispositionDispatched, Evidence: []model.ExecutionEvidence{}}
+	recovery := model.Recovery{Artifacts: []model.Artifact{}, Constraints: []model.RecoveryConstraint{}}
+	if execErr != nil {
+		execution.Disposition = model.DispositionFailed
+	}
+	for _, artifact := range artifacts {
+		if artifact.Kind != "process_invocation" {
+			recovery.Artifacts = append(recovery.Artifacts, artifact)
+			continue
+		}
+		evidence := invocationEvidence(selector, artifact, execErr)
+		execution.Evidence = append(execution.Evidence, evidence)
+		if artifact.Recovery != "" &&
+			!strings.HasPrefix(artifact.Recovery, "No persistent remoteexec artifact") &&
+			!strings.HasPrefix(artifact.Recovery, "No remoteexec-managed persistent artifact") {
+			recovery.Constraints = append(recovery.Constraints, model.RecoveryConstraint{
+				Kind: "process_state", InvocationID: artifact.InvocationID, Program: artifact.Program,
+				ProcessID: artifact.ProcessID, RelatedProcessID: artifact.RelatedProcessID,
+				Description: artifact.Recovery,
+			})
+		}
+	}
+	if execErr == nil {
+		switch selector {
+		case "WSManExec", "SSHExec":
+			execution.Disposition = model.DispositionCompleted
+		case "WMIProvider":
+			execution.Evidence = append(execution.Evidence, model.ExecutionEvidence{
+				Kind: "api_result", Source: "MSFT_Providers.Load", Outcome: "accepted",
+				ProcessIDStatus: "not_provided_by_api", Detail: "provider load method returned successfully; payload-defined work is not independently observed",
+			})
+		case "WMIService", "SCMChangeService", "SCMCreateService":
+			execution.Evidence = append(execution.Evidence, model.ExecutionEvidence{
+				Kind: "service_state", Source: selector, Outcome: "accepted",
+				ProcessIDStatus: "not_provided_by_api", Detail: "service start was accepted; payload-defined completion is not independently observed",
+			})
+		}
+	}
+	recovery.Required = len(recovery.Artifacts) > 0
+	return execution, recovery
+}
+
+func invocationEvidence(selector string, artifact model.Artifact, execErr error) model.ExecutionEvidence {
+	source := map[string]string{
+		"WMIExec": "Win32_Process.Create", "WSManExec": "WSMan command",
+		"TaskSchedExec": "Task Scheduler Run", "DCOMIShellDispatch2": "IShellDispatch2.ShellExecute",
+		"SSHExec": "SSH exec request",
+	}[selector]
+	if source == "" {
+		source = selector
+	}
+	evidence := model.ExecutionEvidence{
+		Kind: "process_invocation", Source: source, Outcome: "accepted",
+		InvocationID: artifact.InvocationID, Program: artifact.Program,
+		ProcessID: artifact.ProcessID, RelatedProcessID: artifact.RelatedProcessID,
+		ProcessIDStatus: "not_provided_by_api",
+		Detail:          "remote API accepted the invocation; payload completion is not independently observed",
+	}
+	if artifact.ProcessID != 0 {
+		evidence.ProcessIDStatus = "returned_or_observed"
+		evidence.Detail = "remote API accepted the invocation and returned or exposed the process identifier; payload completion is not independently observed"
+	}
+	if execErr != nil {
+		evidence.Outcome = "failed"
+		evidence.Detail = "the invocation attempt failed; see the result error"
+		return evidence
+	}
+	if selector == "WSManExec" || selector == "SSHExec" {
+		zero := 0
+		evidence.Outcome = "completed"
+		evidence.ExitCode = &zero
+		evidence.ProcessIDStatus = "not_provided_by_api"
+		evidence.Detail = "remote command completed with exit code 0; this API does not provide a portable process identifier"
+	}
+	return evidence
 }
 
 // executionError keeps timeouts and missing responses from ever reading as

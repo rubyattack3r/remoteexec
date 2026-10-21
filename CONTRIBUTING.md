@@ -6,4 +6,4 @@ Create a focused branch, run `make verify`, and include tests and documentation.
 
 New execution transports belong under `internal/exec/<platform-or-transport>`. Keep protocol or native API details inside that feature package and expose only shared plans, results, and validation errors to the execution engine. See the [architecture guide](docs/architecture.md) before adding a backend.
 
-Do not include live credentials, engagement data, payloads, or target identifiers in commits or issues.
+Reusable benign live-test fixture sources belong under [`testdata/`](testdata/windows/README.md) and must have deterministic, documented side effects. Do not commit compiled fixtures, operational payloads, credentials, target configuration or identifiers, generated keys, logs, or live-test results; keep them under `.local/`.

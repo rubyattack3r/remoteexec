@@ -2,22 +2,33 @@
 
 remoteexec uses an explicit LOLBin selector when a process-launch technique must load a staged native DLL, Control Panel module, or managed assembly. There is no default: the operator must provide the local source with `--payload`, the exact destination with `--remote-path`, and a compatible `--lolbin`. Run `remoteexec exec binaries` for the machine-readable built-in contracts.
 
+If you build the payload yourself, start with [authoring launcher-compatible payloads](authoring.md), then use the family-specific native, CPL, managed, injection, or custom-launcher reference.
+
 `WMIProvider` is the exception. Its provider host loads the registered DLL directly, so it requires `--remote-path` but rejects launcher flags. Service payloads, executable payloads, and direct commands also do not use them.
+
+## Launcher documentation
+
+- [Payload authoring and validation](authoring.md)
+- [Native DLL launchers](native.md)
+- [Control Panel modules](cpl.md)
+- [Managed launchers](managed.md)
+- [Process-bound injection](injection.md)
+- [Custom launchers](custom.md)
 
 ## Supported selectors
 
-| Selector | Payload | Generated invocation | Required contract | Relative detectability |
+| Selector | Payload | Generated invocation | Required contract | Key telemetry |
 |---|---|---|---|---|
-| `rundll32.exe` | `dll` | `rundll32.exe <remote-path>,<entry-point>` | Export supplied by `--entry-point` | High; commonly monitored command line and DLL load |
-| `rundll32.exe (advpack RegisterOCX)` | `dll` | `rundll32.exe advpack.dll,RegisterOCX <remote-path>` | `DllRegisterServer` | High; Rundll32 and Advpack proxy execution is well-signatured |
-| `msiexec.exe (/y)`, `msiexec.exe (/z)` | `dll` | `msiexec.exe /y|/z <remote-path>` | `DllRegisterServer` or `DllUnregisterServer` | High; atypical MSI registration and DLL load |
-| `odbcconf.exe` | `dll` | `odbcconf.exe /a {REGSVR <remote-path>}` | `DllRegisterServer` | High; uncommon ODBC configuration and DLL load |
-| `regsvr32.exe` variants | `dll` | `regsvr32.exe /s [...] <remote-path>` | `DllRegisterServer`, `DllUnregisterServer`, or `DllInstall` | High; well-known signed-binary proxy execution pattern |
-| `control.exe` | `cpl` | `control.exe <remote-path>` | CPL module implementing `CPlApplet` | High; unusual Control Panel module path and resulting child activity |
-| `mavinject.exe` | `dll` | `mavinject.exe <process-id> /INJECTRUNNING <remote-path>` | Native DLL compatible with the selected process | High; cross-process injection and module-load telemetry |
-| `RegAsm.exe`, `RegAsm.exe (/U)` | `managed` | `RegAsm.exe [/U] <remote-path>` | COM registration or unregistration callback | High; uncommon framework registration process and registry effects |
-| `RegSvcs.exe`, `RegSvcs.exe (/U)` | `managed` | `RegSvcs.exe [/U] <remote-path>` | Signed serviced-component assembly | High; uncommon enterprise-services registration activity |
-| `InstallUtil.exe`, `InstallUtil.exe (/U)` | `managed` | `InstallUtil.exe ... [/U] <remote-path>` | `[RunInstaller(true)]` installer implementation | High; well-known managed proxy-execution pattern |
+| `rundll32.exe` | `dll` | `rundll32.exe <remote-path>,<entry-point>` | Export supplied by `--entry-point` | `rundll32` command line, DLL load |
+| `rundll32.exe (advpack RegisterOCX)` | `dll` | `rundll32.exe advpack.dll,RegisterOCX <remote-path>` | `DllRegisterServer` | `rundll32` loading `advpack.dll`, DLL load |
+| `msiexec.exe (/y)`, `msiexec.exe (/z)` | `dll` | `msiexec.exe /y|/z <remote-path>` | `DllRegisterServer` or `DllUnregisterServer` | `msiexec` DLL registration, DLL load |
+| `odbcconf.exe` | `dll` | `odbcconf.exe /a {REGSVR <remote-path>}` | `DllRegisterServer` | `odbcconf` process, DLL load |
+| `regsvr32.exe` variants | `dll` | `regsvr32.exe /s [...] <remote-path>` | `DllRegisterServer`, `DllUnregisterServer`, or `DllInstall` | `regsvr32` command line, DLL load |
+| `control.exe` | `cpl` | `control.exe <remote-path>` | CPL module implementing `CPlApplet` | Control Panel module path, child processes |
+| `mavinject.exe` | `dll` | `mavinject.exe <process-id> /INJECTRUNNING <remote-path>` | Native DLL compatible with the selected process | Cross-process injection, module load |
+| `RegAsm.exe`, `RegAsm.exe (/U)` | `managed` | `RegAsm.exe [/U] <remote-path>` | COM registration or unregistration callback | .NET registration process, registry writes |
+| `RegSvcs.exe`, `RegSvcs.exe (/U)` | `managed` | `RegSvcs.exe [/U] <remote-path>` | Signed serviced-component assembly | Enterprise-services registration |
+| `InstallUtil.exe`, `InstallUtil.exe (/U)` | `managed` | `InstallUtil.exe ... [/U] <remote-path>` | `[RunInstaller(true)]` installer implementation | `InstallUtil` process, managed assembly load |
 
 Selectors containing spaces or parentheses must be quoted in a shell:
 
@@ -66,12 +77,12 @@ remoteexec exec technique --dry-run \
 
 ## Delivery and recovery contract
 
-For a file payload, preflight confirms that the parent of `--remote-path` exists, the destination does not already exist, sufficient free space is available, and SMB is reachable. Execution stages the bytes, invokes the selected binary through the chosen remote-execution technique, and reports the staged file and process invocation as artifacts.
+For a file payload, preflight confirms that the parent of `--remote-path` exists, the destination does not already exist, sufficient free space is available, and SMB is reachable. Execution stages the bytes, invokes the selected binary through the chosen remote-execution technique, reports the invocation under `execution.evidence`, and reports the staged file under `recovery.artifacts`.
 
-remoteexec does not automatically remove artifacts. Remove the reported staged file only after the launcher has exited and the module is no longer mapped. Registration and installer callbacks can create arbitrary registry, COM, service, or file state; those payload-defined effects are outside the generic delivery contract. Injection cannot be generically undone: the process artifact includes `related_process_id`, and the operator must decide whether to leave, unload, or terminate the disposable process before removing the DLL.
+remoteexec does not automatically remove artifacts. Remove the reported staged file only after the launcher has exited and the module is no longer mapped. Registration and installer callbacks can create arbitrary registry, COM, service, or file state; those payload-defined effects are outside the generic delivery contract. Injection cannot be generically undone: execution evidence and the corresponding recovery constraint include `related_process_id`, and the operator must decide whether to leave, unload, or terminate the disposable process before removing the DLL.
 
 ## Detection considerations
 
-No selector is quiet or undetectable. Defenders can correlate the remote-management parent activity with SMB file creation, process creation, command-line telemetry, module loads, image reputation, and any registration side effects. The relative rating is high for every supported selector; changing the signed Windows binary changes telemetry details, not the underlying observability of staged remote DLL execution.
+No selector is quiet or undetectable. Defenders can correlate the remote-management parent activity with SMB file creation, process creation, command-line telemetry, module loads, image reputation, and any registration side effects. Changing the signed Windows binary changes telemetry details, not the underlying observability of staged remote DLL execution.
 
 References: [Microsoft `regsvr32` syntax](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/regsvr32), [Microsoft `DllInstall` contract](https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-dllinstall), [LOLBAS Advpack](https://github.com/LOLBAS-Project/LOLBAS/blob/master/yml/OSLibraries/Advpack.yml), [executing Control Panel items](https://learn.microsoft.com/en-us/windows/win32/shell/executing-control-panel-items), [InstallUtil](https://learn.microsoft.com/en-us/dotnet/framework/tools/installutil-exe-installer-tool), and [RegSvcs](https://learn.microsoft.com/en-us/dotnet/framework/tools/regsvcs-exe-net-services-installation-tool).

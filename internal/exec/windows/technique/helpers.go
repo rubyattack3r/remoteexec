@@ -2,6 +2,7 @@ package technique
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -257,6 +258,27 @@ func preflightExecution(ctx context.Context, s Session, req Request) (Evidence, 
 		if !exists {
 			return evidence, snapshot, errs.New(errs.Validation, "launcher process id %d does not exist", req.ProcessID)
 		}
+		image, err := s.ProcessImage(ctx, req.ProcessID)
+		if err != nil {
+			return evidence, snapshot, errs.Wrap(errs.Validation, fmt.Errorf("read launcher process image: %w", err))
+		}
+		imageBytes, err := s.ReadFile(ctx, image)
+		if err != nil {
+			return evidence, snapshot, errs.Wrap(errs.Validation, fmt.Errorf("read launcher process image %s: %w", image, err))
+		}
+		payloadArch, err := peArchitecture(req.Payload)
+		if err != nil {
+			return evidence, snapshot, errs.Wrap(errs.Validation, fmt.Errorf("launcher payload architecture: %w", err))
+		}
+		processArch, err := peArchitecture(imageBytes)
+		if err != nil {
+			return evidence, snapshot, errs.Wrap(errs.Validation, fmt.Errorf("launcher process architecture for %s: %w", image, err))
+		}
+		matched := payloadArch == processArch
+		evidence = append(evidence, engine.Check{Name: "launcher_architecture", Passed: matched, Detail: fmt.Sprintf("payload=%s process=%s image=%s", payloadArch, processArch, image)})
+		if !matched {
+			return evidence, snapshot, errs.New(errs.Validation, "launcher payload architecture %s does not match process id %d architecture %s (%s)", payloadArch, req.ProcessID, processArch, image)
+		}
 		return evidence, snapshot, nil
 	}
 	evidence := Evidence{}
@@ -268,6 +290,26 @@ func preflightExecution(ctx context.Context, s Session, req Request) (Evidence, 
 		return evidence, snapshot, errs.New(errs.Validation, "%s: command payload must be a non-empty single command line of at most 32767 bytes", req.Technique.Name)
 	}
 	return evidence, snapshot, nil
+}
+
+func peArchitecture(content []byte) (string, error) {
+	if len(content) < 0x40 || content[0] != 'M' || content[1] != 'Z' {
+		return "", fmt.Errorf("file has no DOS/PE header")
+	}
+	offset := int(binary.LittleEndian.Uint32(content[0x3c:0x40]))
+	if offset < 0 || offset+6 > len(content) || string(content[offset:offset+4]) != "PE\x00\x00" {
+		return "", fmt.Errorf("file has no valid PE signature")
+	}
+	switch binary.LittleEndian.Uint16(content[offset+4 : offset+6]) {
+	case 0x014c:
+		return "x86", nil
+	case 0x8664:
+		return "x64", nil
+	case 0xaa64:
+		return "arm64", nil
+	default:
+		return "", fmt.Errorf("unsupported PE machine 0x%x", binary.LittleEndian.Uint16(content[offset+4:offset+6]))
+	}
 }
 
 func commandLine(req Request) string {

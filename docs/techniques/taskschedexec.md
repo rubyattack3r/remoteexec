@@ -35,4 +35,4 @@ Delete the exact task path reported in the result, release COM objects, and remo
 
 ## Detection considerations
 
-Relative detectability: **high**. Task registration and execution events, short-lived task definitions, RPC activity, and process creation are well-signatured. Command mode avoids SMB and DLL-loader signals but does not reduce the scheduled-task telemetry.
+Task registration and execution events, short-lived task definitions, RPC activity, and process creation are well-signatured. Command mode avoids SMB and DLL-loader signals but does not reduce the scheduled-task telemetry.

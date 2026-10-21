@@ -22,7 +22,7 @@ func uncPath(target, path string) string {
 
 func writeFile(ctx context.Context, target, path string, content []byte, ident identity) (string, error) {
 	var writeErr error
-	ident.run(func() error {
+	if err := ident.run(func() error {
 		handle, err := windows.CreateFile(windows.StringToUTF16Ptr(uncPath(target, path)), windows.GENERIC_WRITE, 0, nil, windows.CREATE_NEW, windows.FILE_ATTRIBUTE_NORMAL, 0)
 		if err != nil {
 			if isErrno(err, windows.ERROR_FILE_EXISTS) || isErrno(err, windows.ERROR_ALREADY_EXISTS) {
@@ -42,7 +42,9 @@ func writeFile(ctx context.Context, target, path string, content []byte, ident i
 			writeErr = errs.New(errs.Execution, "short write to %s", path)
 		}
 		return nil
-	})
+	}); err != nil {
+		return "", err
+	}
 	if writeErr != nil {
 		return "", writeErr
 	}
@@ -56,7 +58,7 @@ func writeFile(ctx context.Context, target, path string, content []byte, ident i
 func readFile(ctx context.Context, target, path string, ident identity) ([]byte, error) {
 	var data []byte
 	var readErr error
-	ident.run(func() error {
+	if err := ident.run(func() error {
 		handle, err := windows.CreateFile(windows.StringToUTF16Ptr(uncPath(target, path)), windows.GENERIC_READ, windows.FILE_SHARE_READ, nil, windows.OPEN_EXISTING, windows.FILE_ATTRIBUTE_NORMAL, 0)
 		if err != nil {
 			readErr = errs.Wrap(errs.Execution, err)
@@ -78,7 +80,9 @@ func readFile(ctx context.Context, target, path string, ident identity) ([]byte,
 		}
 		data = all
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
 	return data, readErr
 }
 
@@ -93,18 +97,28 @@ func removeFile(ctx context.Context, target, path string, ident identity) error 
 
 func fileExists(ctx context.Context, target, path string, ident identity) (bool, error) {
 	var exists bool
-	ident.run(func() error {
+	var probeErr error
+	if err := ident.run(func() error {
 		attrs, err := windows.GetFileAttributes(windows.StringToUTF16Ptr(uncPath(target, path)))
-		exists = err == nil && attrs != windows.INVALID_FILE_ATTRIBUTES
+		if err != nil {
+			if isErrno(err, windows.ERROR_FILE_NOT_FOUND) || isErrno(err, windows.ERROR_PATH_NOT_FOUND) {
+				return nil
+			}
+			probeErr = errs.Wrap(errs.Reachability, err)
+			return nil
+		}
+		exists = attrs != windows.INVALID_FILE_ATTRIBUTES
 		return nil
-	})
-	return exists, nil
+	}); err != nil {
+		return false, err
+	}
+	return exists, probeErr
 }
 
 func globFiles(ctx context.Context, target, pattern string, ident identity) ([]string, error) {
 	var names []string
 	var globErr error
-	ident.run(func() error {
+	if err := ident.run(func() error {
 		data := &windows.Win32finddata{}
 		handle, err := windows.FindFirstFile(windows.StringToUTF16Ptr(uncPath(target, pattern)), data)
 		if err != nil {
@@ -127,7 +141,9 @@ func globFiles(ctx context.Context, target, pattern string, ident identity) ([]s
 			names = append(names, windows.UTF16ToString(data.FileName[:]))
 		}
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
 	return names, globErr
 }
 

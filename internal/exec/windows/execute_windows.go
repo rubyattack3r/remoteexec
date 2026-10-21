@@ -1,4 +1,4 @@
-//go:build windows && remoteexec_experimental
+//go:build windows
 
 package windows
 
@@ -13,11 +13,6 @@ import (
 	"github.com/rubyattack3r/remoteexec/internal/exec/windows/native"
 	adapter "github.com/rubyattack3r/remoteexec/internal/exec/windows/technique"
 )
-
-// MutationEnabled reports whether this build may perform technique
-// mutations. Experimental builds drive Win32 and COM directly from the host
-// remoteexec runs on.
-func MutationEnabled() bool { return true }
 
 // closeSession releases backend-owned resources (the impersonation token)
 // when the concrete session supports it.

@@ -8,7 +8,7 @@ import (
 )
 
 func completeDescriptor() Descriptor {
-	return Descriptor{Name: "x", Title: "x", Platforms: []target.Platform{target.Windows}, Transport: target.Native, Prerequisites: []string{"x"}, Requirements: []Requirement{RequireLocalAdmin}, Privilege: "x", Surface: []string{"x"}, FileDelivery: DeliveryNone, Invocations: map[payload.Kind]InvocationMode{payload.Command: InvocationDirect}, Payloads: []payload.Kind{payload.Command}, Recovery: "x", OPSEC: "x", Detection: "x"}
+	return Descriptor{Name: "x", Title: "x", Platforms: []target.Platform{target.Windows}, Transport: target.Native, Prerequisites: []string{"x"}, Requirements: []Requirement{RequireLocalAdmin}, Privilege: "x", Surface: []string{"x"}, FileDelivery: DeliveryNone, Invocations: map[payload.Kind]InvocationMode{payload.Command: InvocationDirect}, Payloads: []payload.Kind{payload.Command}, Recovery: "x", Telemetry: "x"}
 }
 
 func TestRegistryRejectsIncompleteAndDuplicateDescriptors(t *testing.T) {

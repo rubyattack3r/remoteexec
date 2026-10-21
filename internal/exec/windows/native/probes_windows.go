@@ -29,11 +29,17 @@ type wtsSessionInfo struct {
 
 // Probes performs the direct preflight checks from the Windows host
 // remoteexec runs on.
-type Probes struct{}
+type Probes struct {
+	ident identity
+}
 
-func (Probes) Close() {}
+func (p *Probes) Close() {
+	p.ident.close()
+	p.ident = identity{}
+}
 
-func (Probes) Authenticate(ctx context.Context, target string, creds credentials.Credentials) error {
+func (p *Probes) Authenticate(ctx context.Context, target string, creds credentials.Credentials) error {
+	p.Close()
 	if creds.Password == "" {
 		if creds.Username == "" {
 			return nil
@@ -44,37 +50,40 @@ func (Probes) Authenticate(ctx context.Context, target string, creds credentials
 	if err != nil {
 		return err
 	}
-	ident.close()
+	p.ident = ident
 	return nil
 }
 
-func (Probes) LocalAdmin(ctx context.Context, target string, creds credentials.Credentials) (bool, error) {
-	ident, err := logonIfNeeded(creds)
-	if err != nil {
-		return false, err
-	}
-	defer ident.close()
+func (p *Probes) LocalAdmin(ctx context.Context, target string, creds credentials.Credentials) (bool, error) {
+	ident := p.ident
 	var admin bool
-	ident.run(func() error {
+	var probeErr error
+	if err := ident.run(func() error {
 		// The ADMIN$ administrative share is only accessible to local
 		// administrators, so a successful open proves the privilege.
 		handle, err := windows.CreateFile(windows.StringToUTF16Ptr(`\\`+target+`\ADMIN$`), windows.GENERIC_READ, windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE, nil, windows.OPEN_EXISTING, windows.FILE_FLAG_BACKUP_SEMANTICS, 0)
 		if err != nil {
+			if isErrno(err, windows.ERROR_ACCESS_DENIED) {
+				return nil
+			}
+			if isErrno(err, windows.ERROR_LOGON_FAILURE) || isErrno(err, windows.ERROR_INVALID_PASSWORD) {
+				probeErr = errs.Wrap(errs.Authentication, err)
+				return nil
+			}
+			probeErr = errs.Wrap(errs.Reachability, err)
 			return nil
 		}
 		windows.CloseHandle(handle)
 		admin = true
 		return nil
-	})
-	return admin, nil
+	}); err != nil {
+		return false, err
+	}
+	return admin, probeErr
 }
 
-func (Probes) ServiceState(ctx context.Context, target, name string, creds credentials.Credentials) (string, bool, error) {
-	ident, err := logonIfNeeded(creds)
-	if err != nil {
-		return "", false, err
-	}
-	defer ident.close()
+func (p *Probes) ServiceState(ctx context.Context, target, name string, creds credentials.Credentials) (string, bool, error) {
+	ident := p.ident
 	var (
 		state string
 		found bool
@@ -99,12 +108,8 @@ func (Probes) ServiceState(ctx context.Context, target, name string, creds crede
 	return state, found, err2
 }
 
-func (Probes) ServiceImagePath(ctx context.Context, target, name string, creds credentials.Credentials) (string, bool, error) {
-	ident, err := logonIfNeeded(creds)
-	if err != nil {
-		return "", false, err
-	}
-	defer ident.close()
+func (p *Probes) ServiceImagePath(ctx context.Context, target, name string, creds credentials.Credentials) (string, bool, error) {
+	ident := p.ident
 	var (
 		path  string
 		found bool
@@ -128,16 +133,12 @@ func (Probes) ServiceImagePath(ctx context.Context, target, name string, creds c
 	return path, found, err2
 }
 
-func (Probes) ActiveSession(ctx context.Context, target string, creds credentials.Credentials) (bool, error) {
+func (p *Probes) ActiveSession(ctx context.Context, target string, creds credentials.Credentials) (bool, error) {
 	server, err := windows.UTF16PtrFromString(target)
 	if err != nil {
 		return false, errs.New(errs.Reachability, "invalid target: %v", err)
 	}
-	ident, err := logonIfNeeded(creds)
-	if err != nil {
-		return false, err
-	}
-	defer ident.close()
+	ident := p.ident
 	var active bool
 	var probeErr error
 	if err := ident.run(func() error {
@@ -171,12 +172,8 @@ func (Probes) ActiveSession(ctx context.Context, target string, creds credential
 	return active, probeErr
 }
 
-func (Probes) DiskFree(ctx context.Context, target, remotePath string, creds credentials.Credentials) (uint64, error) {
-	ident, err := logonIfNeeded(creds)
-	if err != nil {
-		return 0, err
-	}
-	defer ident.close()
+func (p *Probes) DiskFree(ctx context.Context, target, remotePath string, creds credentials.Credentials) (uint64, error) {
+	ident := p.ident
 	var free uint64
 	var diskErr error
 	if err := ident.run(func() error {
@@ -204,29 +201,10 @@ func (Probes) DiskFree(ctx context.Context, target, remotePath string, creds cre
 	return free, diskErr
 }
 
-func (Probes) FileExists(ctx context.Context, target, path string, creds credentials.Credentials) (bool, error) {
-	ident, err := logonIfNeeded(creds)
-	if err != nil {
-		return false, err
-	}
-	defer ident.close()
-	return fileExists(ctx, target, path, ident)
+func (p *Probes) FileExists(ctx context.Context, target, path string, creds credentials.Credentials) (bool, error) {
+	return fileExists(ctx, target, path, p.ident)
 }
 
-func (Probes) Glob(ctx context.Context, target, pattern string, creds credentials.Credentials) ([]string, error) {
-	ident, err := logonIfNeeded(creds)
-	if err != nil {
-		return nil, err
-	}
-	defer ident.close()
-	return globFiles(ctx, target, pattern, ident)
-}
-
-// logonIfNeeded logs on only when a password is supplied; otherwise the
-// caller identity is used. It never fails on token-mode probes.
-func logonIfNeeded(creds credentials.Credentials) (identity, error) {
-	if creds.Password == "" {
-		return identity{}, nil
-	}
-	return logon(creds)
+func (p *Probes) Glob(ctx context.Context, target, pattern string, creds credentials.Credentials) ([]string, error) {
+	return globFiles(ctx, target, pattern, p.ident)
 }

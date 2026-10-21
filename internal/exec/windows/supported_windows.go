@@ -2,6 +2,6 @@
 
 package windows
 
-// Supported reports whether this build can perform live, read-only preflight
-// checks against targets from the host remoteexec runs on.
+// Supported reports whether the Windows-native backend is available in this
+// build.
 func Supported() bool { return true }

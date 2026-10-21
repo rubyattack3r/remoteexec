@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rubyattack3r/remoteexec/internal/exec/engine"
 	"github.com/rubyattack3r/remoteexec/internal/exec/errs"
 	"github.com/rubyattack3r/remoteexec/internal/exec/journal"
 	"github.com/rubyattack3r/remoteexec/internal/exec/model"
@@ -80,7 +81,16 @@ type DCOMShellExecute struct{}
 func (DCOMShellExecute) Name() string { return "DCOMIShellDispatch2" }
 
 func (DCOMShellExecute) Preflight(ctx context.Context, s Session, req Request) (Evidence, RecoverySnapshot, error) {
-	return preflightExecution(ctx, s, req)
+	evidence, snapshot, err := preflightExecution(ctx, s, req)
+	if err != nil {
+		return evidence, snapshot, err
+	}
+	if err := s.ShellAvailable(ctx); err != nil {
+		evidence = append(evidence, engine.Check{Name: "shell_automation", Passed: false, Detail: err.Error()})
+		return evidence, snapshot, errs.Wrap(errs.Authorization, fmt.Errorf("remote shell automation interface is not accessible: %w", err))
+	}
+	evidence = append(evidence, engine.Check{Name: "shell_automation", Passed: true, Detail: "IShellDispatch2 resolved through the active Explorer session"})
+	return evidence, snapshot, nil
 }
 
 func (DCOMShellExecute) Apply(ctx context.Context, s Session, req Request, j Journal) ([]model.Artifact, error) {
@@ -116,9 +126,9 @@ func invokeViaProcessCreate(ctx context.Context, s Session, req Request, j Journ
 }
 
 // invokeViaProcessStart journals and performs an in-session process start.
-// A successful WSManRunShellCommand completion proves that WinRM accepted and
-// created the command. The native API does not report a process ID, and a
-// short-lived loader may exit before an independent WMI observation.
+// The native WSMan implementation waits for CommandState/Done and verifies a
+// zero exit code. The API does not report a process ID, and a short-lived
+// loader may exit before an independent WMI observation.
 func invokeViaProcessStart(ctx context.Context, s Session, req Request, j Journal, commandLine string) (model.Artifact, error) {
 	exe, args := splitCommand(commandLine)
 	return invokeJournalled(ctx, s, req, j, commandLine, invocationMutation(req, "WSMan shell"), func() (uint32, error) {

@@ -128,6 +128,33 @@ func wmiProcessFind(services *ole.IDispatch, image, needle string) ([]uint32, er
 	return pids, nil
 }
 
+func wmiProcessImage(services *ole.IDispatch, pid uint32) (string, error) {
+	wql := fmt.Sprintf("SELECT ExecutablePath FROM Win32_Process WHERE ProcessId=%d", pid)
+	raw, err := oleutil.CallMethod(services, "ExecQuery", wql)
+	if err != nil {
+		return "", errs.Wrap(errs.Execution, err)
+	}
+	query := raw.ToIDispatch()
+	defer query.Release()
+	image := ""
+	err = oleutil.ForEach(query, func(v *ole.VARIANT) error {
+		item := v.ToIDispatch()
+		defer item.Release()
+		value, err := oleutil.GetProperty(item, "ExecutablePath")
+		if err == nil {
+			image = value.ToString()
+		}
+		return nil
+	})
+	if err != nil {
+		return "", errs.Wrap(errs.Execution, err)
+	}
+	if image == "" {
+		return "", errs.New(errs.Validation, "process id %d has no readable executable path", pid)
+	}
+	return image, nil
+}
+
 func wmiServiceObject(services *ole.IDispatch, name string) (*ole.IDispatch, func(), error) {
 	raw, err := oleutil.CallMethod(services, "Get", fmt.Sprintf("Win32_Service.Name='%s'", wqlEscape(name)))
 	if err != nil {

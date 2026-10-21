@@ -54,9 +54,11 @@ type Session interface {
 
 	ProcessCreate(ctx context.Context, commandLine string) (uint32, error)
 	ProcessStart(ctx context.Context, path, args string) (uint32, error)
+	ShellAvailable(ctx context.Context) error
 	ShellExecute(ctx context.Context, path, args string) error
 	ProcessFind(ctx context.Context, imageName, commandLineContains string) ([]uint32, error)
 	ProcessExists(ctx context.Context, pid uint32) (bool, error)
+	ProcessImage(ctx context.Context, pid uint32) (string, error)
 
 	ServiceGet(ctx context.Context, name string) (ServiceConfig, error)
 	ServiceExists(ctx context.Context, name string) (bool, error)

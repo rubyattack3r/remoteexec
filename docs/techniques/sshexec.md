@@ -1,6 +1,6 @@
 # SSH command execution
 
-`SSHExec` is a deliberately narrow, platform-neutral command-execution primitive. It works with SSH servers on Linux, macOS, and Windows by passing the supplied command to the server's default command processor. Windows-specific WMI, DCOM, SCM, and Task Scheduler techniques remain remoteexec's primary focus.
+`SSHExec` is a deliberately narrow, platform-neutral command-execution primitive. Its protocol implementation targets SSH servers on Linux, macOS, and Windows by passing the supplied command to the server's default command processor. Linux and Windows OpenSSH have been validated live; macOS remains untested. Windows-specific WMI, DCOM, SCM, and Task Scheduler techniques remain remoteexec's primary focus.
 
 ## Quick start
 
@@ -37,14 +37,14 @@ sequenceDiagram
     R->>T: New credentialed SSH session
     R->>T: Exec operator command (no PTY)
     T-->>R: Exit status
-    R-->>R: Emit shared 0.1.0 result
+    R-->>R: Emit shared 0.2.0 result
 ```
 
 ## Contract
 
 | Property | `SSHExec` |
 |---|---|
-| Platforms | Linux, macOS, and Windows OpenSSH |
+| Implementation scope | Linux, macOS, and Windows OpenSSH; see [tested platforms](../platforms.md) for live-validation status |
 | Payload type | `command` only |
 | Required privilege | Valid SSH account; the command has only that account's privileges |
 | Network surface | SSH TCP 22 by default, configurable with `--ssh-port` |
@@ -53,9 +53,8 @@ sequenceDiagram
 | File delivery | Not supported |
 | PTY | Not requested |
 | Recovery | No remoteexec-managed persistent artifact; command-specific effects remain the operator's responsibility |
-| Relative detectability | Medium; environment-dependent and never undetectable |
 
-The result contains a `process_invocation` artifact whose `location` and `invocation_id` are `command:sha256:<hex>`. Raw command text and arguments are not retained in the result. SSH does not return a portable remote PID for this request, so `process_id` is omitted.
+The result contains `execution` evidence whose `invocation_id` is `command:sha256:<hex>`. A successful SSH request reports `disposition: completed`, `exit_code: 0`, and `process_id_status: not_provided_by_api`. Raw command text and arguments are not retained. SSH does not return a portable remote PID for this request.
 
 ## Server identity boundary
 

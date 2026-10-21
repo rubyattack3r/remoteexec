@@ -13,20 +13,20 @@ Cross-platform remote-execution assessment tooling for authorized red-team engag
 > [!IMPORTANT]
 > Use remoteexec only on systems you own or have explicit written permission to test. Use is governed by the [Acceptable Use Policy](ACCEPTABLE_USE_POLICY.md).
 
-remoteexec wraps remote-execution primitives in a single CLI. Windows is the main focus today (WMI, WinRM, DCOM, Task Scheduler, and SCM), with Linux and macOS support starting over SSH. Every target is validated before anything runs, and results come back as JSON, YAML, or Signal.
+remoteexec wraps remote-execution primitives in a single CLI. Windows is the main focus today (WMI, WinRM, DCOM, Task Scheduler, and SCM). SSH command execution is implemented for Linux, macOS, and Windows OpenSSH; current live validation covers Linux and Windows OpenSSH, while macOS remains untested. Every target is validated before anything runs, and results come back as JSON, YAML, or Signal.
 
 ![remoteexec validating a WMIExec plan in dry-run mode](docs/assets/demo.gif)
 
-## Dry-run only
+## Execution model
 
-The public build only supports `--dry-run`: it validates targets and prints a plan, but never stages or executes anything. On Windows, dry runs also perform live read-only checks (credentials, permissions, network reachability, service state).
+Windows builds include the native WMI, WinRM, DCOM, Task Scheduler, and SCM execution backend. Linux and macOS builds include `SSHExec`; Windows builds can also use `SSHExec` against OpenSSH targets. Use `--dry-run` when you want prerequisite validation and a plan without staging or executing a payload.
 
 ## Quick Start
 
 ```bash
 go build -o remoteexec .
 
-# Inventory techniques and their detection profile.
+# Inventory techniques and the telemetry they generate.
 ./remoteexec exec techniques --output yaml
 
 # Inventory supported loader selectors.
@@ -46,10 +46,10 @@ go build -o remoteexec .
   --domain CORP --username admin \
   --password 'Passw0rd!' --dry-run
 
-# Exercise the WMI execution primitive without staging a file.
+# Execute the WMI command primitive without staging a file.
 ./remoteexec exec technique --targets 10.0.0.15 --technique WMIExec \
   --payload-type command --command 'whoami.exe /all' \
-  --domain CORP --username admin --password 'Passw0rd!' --dry-run
+  --domain CORP --username admin --password 'Passw0rd!'
 
 # Validate a PsExec-style temporary-service plan.
 ./remoteexec exec technique --targets 10.0.0.15 --technique SCMCreateService \
@@ -60,7 +60,7 @@ go build -o remoteexec .
 
 Avoid passing passwords directly on the command line. Use `--password-stdin` to keep them out of shell history.
 
-See the [documentation index](docs/index.md), [LOLBins reference](docs/lolbins.md), [runtime configuration](docs/configuration.md), [architecture](docs/architecture.md), [output schema](docs/output.md), and [operator recovery guide](docs/recovery.md).
+See the [documentation index](docs/index.md), [tested platforms](docs/platforms.md), [launcher reference](docs/launchers/index.md), [launcher authoring guide](docs/launchers/authoring.md), [runtime configuration](docs/configuration.md), [architecture](docs/architecture.md), [output schema](docs/output.md), and [operator recovery guide](docs/recovery.md).
 
 ## Contributing
 

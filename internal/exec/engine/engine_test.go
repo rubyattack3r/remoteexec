@@ -40,7 +40,7 @@ func testRegistry(t *testing.T) *technique.Registry {
 			Transport: target.Native, FileDelivery: delivery, Invocations: invocations,
 			Prerequisites: []string{"WMI"}, Requirements: []technique.Requirement{technique.RequireWMI},
 			Privilege: "test", Surface: []string{"test"}, Recovery: "test",
-			OPSEC: "test", Detection: "test", Payloads: payloads,
+			Telemetry: "test", Payloads: payloads,
 		}
 	}
 	registry, err := technique.NewRegistry(
@@ -194,6 +194,9 @@ func (b *recordingBackend) Execute(ctx context.Context, p Prepared, _ credential
 	if b.executeErr != nil {
 		return b.artifacts, b.executeErr
 	}
+	if b.artifacts != nil {
+		return b.artifacts, nil
+	}
 	return []model.Artifact{{Kind: "test_artifact", Location: "C:\\Windows\\Temp\\test", Recovery: "delete it"}}, nil
 }
 
@@ -291,8 +294,11 @@ func TestExecuteFailureReportsArtifactsForOperatorRecovery(t *testing.T) {
 	if result.Status != model.StatusFailed || !strings.Contains(result.Error, "boom") {
 		t.Fatalf("unexpected result: %#v", result)
 	}
-	if result.Artifacts == nil || len(result.Artifacts) != 0 {
-		t.Fatalf("failed execution must report an empty, non-nil artifact list: %#v", result.Artifacts)
+	if result.Recovery.Artifacts == nil || len(result.Recovery.Artifacts) != 0 {
+		t.Fatalf("failed execution must report an empty, non-nil recovery artifact list: %#v", result.Recovery.Artifacts)
+	}
+	if result.Execution.Disposition != model.DispositionFailed {
+		t.Fatalf("execution disposition = %q", result.Execution.Disposition)
 	}
 	if result.ErrorKind != errs.Execution {
 		t.Fatalf("error_kind = %q, want %q", result.ErrorKind, errs.Execution)
@@ -336,11 +342,11 @@ func TestCancelledRunReportsEveryTarget(t *testing.T) {
 	if len(results) != 3 {
 		t.Fatalf("results = %d, want one per target", len(results))
 	}
-	if results[0].Status != model.StatusSucceeded || len(results[0].Artifacts) != 1 {
+	if results[0].Status != model.StatusSucceeded || len(results[0].Recovery.Artifacts) != 1 {
 		t.Fatalf("executed target lost its recovery record: %#v", results[0])
 	}
 	for _, result := range results[1:] {
-		if result.Status != model.StatusFailed || !strings.HasPrefix(result.Error, "not attempted:") || result.Artifacts == nil {
+		if result.Status != model.StatusFailed || !strings.HasPrefix(result.Error, "not attempted:") || result.Recovery.Artifacts == nil || result.Execution.Disposition != model.DispositionNotAttempted {
 			t.Fatalf("unattempted target = %#v", result)
 		}
 	}
@@ -363,8 +369,30 @@ func TestPartialMutationArtifactsRemainInResult(t *testing.T) {
 	if !strings.HasPrefix(result.Error, "timeout:") {
 		t.Fatalf("timeout must be explicit, got %q", result.Error)
 	}
-	if len(result.Artifacts) != 1 || result.Artifacts[0].Recovery == "" {
-		t.Fatalf("artifacts after partial execution = %#v", result.Artifacts)
+	if len(result.Recovery.Artifacts) != 1 || result.Recovery.Artifacts[0].Recovery == "" || !result.Recovery.Required {
+		t.Fatalf("artifacts after partial execution = %#v", result.Recovery)
+	}
+}
+
+func TestProcessInvocationBecomesEvidenceAndRecoveryConstraint(t *testing.T) {
+	backend := &recordingBackend{artifacts: []model.Artifact{
+		{Kind: "staged_file", Location: `C:\Windows\Temp\fixture.dll`, Original: "absent", Recovery: "delete it"},
+		{Kind: "process_invocation", InvocationID: "launcher:sha256:abc", Program: "rundll32.exe", ProcessID: 4242, Recovery: "wait for exit"},
+	}}
+	e := Engine{Registry: testRegistry(t), Planner: testPlanner{}, Backend: backend}
+	results, err := e.Run(context.Background(), operationalOpts(t, "10.0.0.1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := results[0]
+	if len(result.Execution.Evidence) != 1 || result.Execution.Evidence[0].ProcessID != 4242 {
+		t.Fatalf("execution evidence = %#v", result.Execution.Evidence)
+	}
+	if len(result.Recovery.Artifacts) != 1 || result.Recovery.Artifacts[0].Kind != "staged_file" {
+		t.Fatalf("recovery artifacts = %#v", result.Recovery.Artifacts)
+	}
+	if len(result.Recovery.Constraints) != 1 || result.Recovery.Constraints[0].InvocationID == "" {
+		t.Fatalf("recovery constraints = %#v", result.Recovery.Constraints)
 	}
 }
 

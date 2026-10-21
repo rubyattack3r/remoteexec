@@ -109,8 +109,8 @@ func preflightFixture() (Backend, *fakeProbes) {
 		Probes:   probes,
 		clock:    func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
 		dialPort: func(context.Context, string, int) error { return nil },
-		// Technique adapters drive native sessions on experimental builds;
-		// these tests cover the shared probe layer only.
+		// Technique adapters drive native sessions on Windows; these tests
+		// cover the shared probe layer only.
 		adapterCheck: func(context.Context, engine.Prepared, credentials.Credentials, *engine.PreflightReport) error {
 			return nil
 		},
@@ -232,7 +232,7 @@ func TestPreflightUsesConfiguredWinRMPort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(ports, []int{445, 8443}) || !report.Capabilities.WinRM {
+	if !reflect.DeepEqual(ports, []int{8443}) || !report.Capabilities.WinRM {
 		t.Fatalf("ports = %v, capabilities = %#v", ports, report.Capabilities)
 	}
 }
@@ -460,6 +460,8 @@ func (s *txSession) ProcessStart(context.Context, string, string) (uint32, error
 
 func (s *txSession) ShellExecute(context.Context, string, string) error { return errors.New("unused") }
 
+func (s *txSession) ShellAvailable(context.Context) error { return nil }
+
 func (s *txSession) ProcessFind(context.Context, string, string) ([]uint32, error) {
 	return nil, nil
 }
@@ -467,6 +469,10 @@ func (s *txSession) ProcessFind(context.Context, string, string) ([]uint32, erro
 func (s *txSession) ProcessExists(_ context.Context, pid uint32) (bool, error) {
 	_, ok := s.processes[pid]
 	return ok, nil
+}
+
+func (s *txSession) ProcessImage(context.Context, uint32) (string, error) {
+	return "", errors.New("unused")
 }
 
 func (s *txSession) ServiceGet(_ context.Context, name string) (adapter.ServiceConfig, error) {

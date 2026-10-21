@@ -2,6 +2,6 @@
 
 package windows
 
-// Supported reports whether this build can perform live, read-only preflight
-// checks against targets. Non-Windows builds validate plans locally only.
+// Supported reports whether the Windows-native backend is available in this
+// build. Non-Windows builds can still validate Windows plans with --dry-run.
 func Supported() bool { return false }

@@ -33,4 +33,4 @@ Call `MSFT_Providers.UnLoad`, remove the exact provider instance and related reg
 
 ## Detection considerations
 
-Relative detectability: **high**. This is well-signatured because provider registration, registry writes through `StdRegProv`, WMI activity, and an unusual DLL load can be correlated. Provider naming and the selected hosting model affect alert confidence, but the technique is never undetectable.
+Provider registration, registry writes through `StdRegProv`, WMI activity, and an unusual DLL load can be correlated. Provider naming and the selected hosting model affect alert confidence, but the technique is never undetectable.

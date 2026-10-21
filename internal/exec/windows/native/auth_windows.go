@@ -22,7 +22,7 @@ var (
 
 const (
 	logon32LogonNewCredentials = 9
-	logon32ProviderDefault     = 0
+	logon32ProviderWinNT50     = 3
 )
 
 // identity carries an interactive logon token used for impersonation. The
@@ -60,19 +60,21 @@ func logon(creds credentials.Credentials) (identity, error) {
 	if err != nil {
 		return identity{}, errs.New(errs.Authentication, "invalid password: %v", err)
 	}
-	var domainArg uintptr
-	if domain != nil {
-		domainArg = uintptr(unsafe.Pointer(domain))
-	}
 	var token windows.Token
 	ok, _, callErr := procLogonUserW.Call(
 		uintptr(unsafe.Pointer(user)),
-		domainArg,
+		uintptr(unsafe.Pointer(domain)),
 		uintptr(unsafe.Pointer(password)),
 		logon32LogonNewCredentials,
-		logon32ProviderDefault,
+		logon32ProviderWinNT50,
 		uintptr(unsafe.Pointer(&token)),
 	)
+	// LazyProc.Call receives uintptr values, which are not GC roots. Keep the
+	// UTF-16 buffers alive until LogonUserW has returned; otherwise the domain
+	// buffer in particular can be reclaimed between conversion and the call.
+	runtime.KeepAlive(user)
+	runtime.KeepAlive(domain)
+	runtime.KeepAlive(password)
 	if ok == 0 {
 		return identity{}, errs.Wrap(errs.Authentication, callErr)
 	}

@@ -2,7 +2,7 @@
 
 ## Mechanism and prerequisites
 
-Implements a PsExec-style primitive natively: stage a Windows service executable, create and start a temporary service through SCM RPC, then remove both. It requires local-administrator rights, reachable SCM/SMB, and an unused `--service-name`. It does not bundle or invoke Microsoft's PsExec utility.
+Implements a PsExec-style primitive natively: stage a Windows service executable, then create and start a temporary service through SCM RPC. It requires local-administrator rights, reachable SCM/SMB, and an unused `--service-name`. It does not bundle or invoke Microsoft's PsExec utility, and it leaves both reported artifacts in place for explicit operator recovery.
 
 ```mermaid
 sequenceDiagram
@@ -30,4 +30,4 @@ Stop the exact service reported in the result if it is still running, delete it,
 
 ## Detection considerations
 
-Relative detectability: **high**. New-service installation, administrative-share writes, service start activity, and a short-lived service definition are well-signatured PsExec-style lateral-movement indicators. Custom naming does not make the technique undetectable.
+New-service installation, administrative-share writes, service start activity, and a short-lived service definition are well-signatured PsExec-style lateral-movement indicators. Custom naming does not make the technique undetectable.

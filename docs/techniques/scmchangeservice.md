@@ -32,4 +32,4 @@ Restore the complete original service configuration and running state, then remo
 
 ## Detection considerations
 
-Relative detectability: **high**. SCM configuration changes, service starts, and anomalous image paths are well-signatured. Selecting a service that is already noisy can change alert priority, but does not make the technique undetectable.
+SCM configuration changes, service starts, and anomalous image paths are well-signatured. Selecting a service that is already noisy can change alert priority, but does not make the technique undetectable.

@@ -24,8 +24,7 @@ func Descriptors() []technique.Descriptor {
 		Invocations:   map[payload.Kind]technique.InvocationMode{payload.Command: technique.InvocationDirect},
 		Payloads:      []payload.Kind{payload.Command},
 		Recovery:      "Command mode creates no remoteexec-managed persistent artifact; review command-specific effects separately",
-		OPSEC:         "medium",
-		Detection:     "SSH authentication, session creation, command execution, and resulting processes may be logged; no PTY or file-transfer subsystem is requested.",
+		Telemetry:     "SSH authentication, session creation, command execution, and resulting processes may be logged; no PTY or file-transfer subsystem is requested.",
 	}}
 }
 

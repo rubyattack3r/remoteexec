@@ -29,7 +29,7 @@ func NewSession(target string, creds credentials.Credentials, auth engine.Auth, 
 	session := &NativeSession{target: target, creds: creds, auth: auth, runtime: runtime}
 	switch auth {
 	case engine.AuthToken, "":
-		if creds.Username != "" || creds.Password != "" || creds.NTHash != "" {
+		if creds.Username != "" || creds.Password != "" {
 			return nil, errs.New(errs.Validation, "token auth takes no identity")
 		}
 	case engine.AuthCredential:
@@ -105,6 +105,11 @@ func (s *NativeSession) ShellExecute(ctx context.Context, path, args string) err
 	return s.ident.run(func() error { return shellExecuteRemote(s.target, path, args, user, domain, password) })
 }
 
+func (s *NativeSession) ShellAvailable(ctx context.Context) error {
+	user, domain, password := comIdentity(s.creds, s.auth)
+	return s.ident.run(func() error { return shellAvailableRemote(s.target, user, domain, password) })
+}
+
 func (s *NativeSession) ProcessFind(ctx context.Context, imageName, commandLineContains string) ([]uint32, error) {
 	services, cleanup, err := wmiServices(s.target, `root\cimv2`, s.creds, s.auth)
 	if err != nil {
@@ -125,6 +130,15 @@ func (s *NativeSession) ProcessExists(ctx context.Context, pid uint32) (bool, er
 		}
 	}
 	return false, nil
+}
+
+func (s *NativeSession) ProcessImage(ctx context.Context, pid uint32) (string, error) {
+	services, cleanup, err := wmiServices(s.target, `root\cimv2`, s.creds, s.auth)
+	if err != nil {
+		return "", err
+	}
+	defer cleanup()
+	return wmiProcessImage(services, pid)
 }
 
 func (s *NativeSession) ServiceGet(ctx context.Context, name string) (adapter.ServiceConfig, error) {

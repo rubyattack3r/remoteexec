@@ -17,7 +17,6 @@ func TestValidateSSHRequiresExactlyOneMethod(t *testing.T) {
 		{Username: "operator"},
 		{Username: "operator", Password: "secret", PrivateKeyPath: "key"},
 		{Username: "operator", Password: "secret", Domain: "EXAMPLE"},
-		{Username: "operator", PrivateKeyPath: "key", NTHash: "0123456789abcdef0123456789abcdef"},
 	}
 	for _, creds := range invalid {
 		if err := creds.ValidateSSH(); err == nil {

@@ -123,7 +123,7 @@ func TestBinaryInventoryHasCompleteContracts(t *testing.T) {
 		t.Fatalf("binary count = %d, want 17", len(Binaries()))
 	}
 	for _, binary := range Binaries() {
-		if binary.Selector == "" || binary.Program == "" || !binary.PayloadType.UsesLauncher() || binary.RequiredExport == "" || binary.InvocationTemplate == "" || binary.Detectability == "" || binary.Notes == "" {
+		if binary.Selector == "" || binary.Program == "" || !binary.PayloadType.UsesLauncher() || binary.RequiredExport == "" || binary.InvocationTemplate == "" || binary.Notes == "" {
 			t.Errorf("incomplete binary contract: %#v", binary)
 		}
 	}

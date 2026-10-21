@@ -36,8 +36,8 @@ func newTechniqueCommand(globals *config.RootFlags) *cobra.Command {
 				return err
 			}
 			if passwordStdin {
-				if opts.Credentials.Password != "" || opts.Credentials.NTHash != "" || opts.Credentials.PrivateKeyPath != "" {
-					return fmt.Errorf("credential validation: --password-stdin cannot be combined with --password, --nt-hash, or --private-key")
+				if opts.Credentials.Password != "" || opts.Credentials.PrivateKeyPath != "" {
+					return fmt.Errorf("credential validation: --password-stdin cannot be combined with --password or --private-key")
 				}
 				password, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 				if err != nil && len(password) == 0 {
@@ -55,9 +55,6 @@ func newTechniqueCommand(globals *config.RootFlags) *cobra.Command {
 			descriptor, ok := registry.Get(opts.Technique)
 			if !ok {
 				return fmt.Errorf("unknown technique %q; run `remoteexec exec techniques`", opts.Technique)
-			}
-			if descriptor.Transport == target.Native && !opts.DryRun && !execution.MutationEnabled() {
-				return fmt.Errorf("mutation requires the Windows experimental build (remoteexec_experimental); use --dry-run to validate plans")
 			}
 			ctx, cancel := context.WithTimeout(cmd.Context(), globals.Timeout*time.Duration(max(1, len(opts.Targets))))
 			defer cancel()
@@ -105,7 +102,6 @@ func newTechniqueCommand(globals *config.RootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&opts.Credentials.Username, "username", "", "account username")
 	cmd.Flags().StringVar(&opts.Credentials.Password, "password", "", "account password (prefer a protected environment integration)")
 	cmd.Flags().BoolVar(&passwordStdin, "password-stdin", false, "read the account password from standard input")
-	cmd.Flags().StringVar(&opts.Credentials.NTHash, "nt-hash", "", "NT hash alternative to a password")
 	cmd.Flags().StringVar(&opts.Credentials.PrivateKeyPath, "private-key", "", "unencrypted OpenSSH private key used for SSH authentication")
 	cmd.Flags().BoolVar(&opts.DryRun, "dry-run", false, "validate all prerequisites and emit plans without remote changes")
 	_ = cmd.MarkFlagRequired("targets")
@@ -117,7 +113,7 @@ func newTechniqueCommand(globals *config.RootFlags) *cobra.Command {
 func newTechniquesCommand(globals *config.RootFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "techniques",
-		Short: "List technique prerequisites, surfaces, recovery, and detectability",
+		Short: "List technique prerequisites, surfaces, recovery, and telemetry",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := output.Validate(globals.Output); err != nil {
 				return err

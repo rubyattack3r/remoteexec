@@ -12,6 +12,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Architecture: architecture.md
+  - Tested Platforms: platforms.md
   - Techniques:
       - WMI Provider: techniques/wmiprovider.md
       - WMI Service: techniques/wmiservice.md
@@ -23,6 +24,13 @@ nav:
       - SCM Create Service: techniques/scmcreateservice.md
       - SSH Exec: techniques/sshexec.md
   - Configuration: configuration.md
-  - LOLBins: lolbins.md
+  - Launchers:
+      - Overview: launchers/index.md
+      - Authoring: launchers/authoring.md
+      - Native DLLs: launchers/native.md
+      - Control Panel Modules: launchers/cpl.md
+      - Managed Assemblies: launchers/managed.md
+      - Process Injection: launchers/injection.md
+      - Custom Launchers: launchers/custom.md
   - Output: output.md
   - Operator Recovery: recovery.md

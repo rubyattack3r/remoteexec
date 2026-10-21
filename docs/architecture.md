@@ -36,7 +36,7 @@ A technique descriptor declares its platform, transport, supported payload types
 
 Built-in LOLBin metadata, payload compatibility, required options, and argument templates live in one delivery registry. Custom launchers use the same resolved plan shape but require an absolute target-resident executable path and a constrained placeholder template. The Windows backend verifies absolute launcher paths during batch preflight; adapters receive only the resolved command and typed process context, never selector-specific branches.
 
-The Windows mutation implementation remains experimental and build-gated. Mutation events exist only in memory while constructing artifact results; remoteexec writes no recovery journal. Native API conformance tests on disposable Windows targets are required before enabling it.
+Windows builds include the native backend; non-Windows builds do not pretend to provide Windows-native execution. Mutation events exist only in memory while constructing artifact results, and remoteexec writes no recovery journal. Platform-native CI and disposable-host conformance tests cover the same backend shipped in release archives.
 
 ## Adding another platform
 
@@ -49,4 +49,4 @@ Add a package beneath `internal/exec` containing:
 5. Mutation adapters that report complete operator recovery artifacts.
 6. Platform-native CI and integration tests.
 
-The `ssh` package is the minimal transport-oriented example. `SSHExec` passes a command to the server's default command processor after credentialed preflight, without requiring or probing an operating system. It supports OpenSSH servers on Linux, macOS, and Windows, has no file-delivery contract, and does not model platform-specific lateral-movement mechanisms.
+The `ssh` package is the minimal transport-oriented example. `SSHExec` passes a command to the server's default command processor after credentialed preflight, without requiring or probing an operating system. Its protocol implementation targets OpenSSH servers on Linux, macOS, and Windows, has no file-delivery contract, and does not model platform-specific lateral-movement mechanisms. The [tested-platform matrix](platforms.md) records live-validation status separately from implementation scope.

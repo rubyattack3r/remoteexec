@@ -50,7 +50,7 @@ func (b Backend) probesValue() prober {
 	if b.Probes != nil {
 		return b.Probes
 	}
-	return native.Probes{}
+	return &native.Probes{}
 }
 
 func (b Backend) clockValue() func() time.Time {
@@ -99,6 +99,9 @@ func (b Backend) dialPortValue() func(ctx context.Context, target string, port i
 func (b Backend) Preflight(ctx context.Context, prepared engine.Prepared, creds credentials.Credentials) (engine.PreflightReport, error) {
 	report := engine.PreflightReport{RunID: b.newRunIDValue(), Target: prepared.Target, Evidence: []engine.Check{}}
 	probe := b.probesValue()
+	if closer, ok := probe.(interface{ Close() }); ok {
+		defer closer.Close()
+	}
 	if err := probe.Authenticate(ctx, prepared.Target, creds); err != nil {
 		addEvidence(&report, "authentication", false, err.Error())
 		return report, fmt.Errorf("execution backend: authentication to %s: %w", prepared.Target, err)
@@ -114,7 +117,16 @@ func (b Backend) Preflight(ctx context.Context, prepared engine.Prepared, creds 
 		}
 	}
 	ports := requiredPorts(prepared.Technique.Name, winRMPort, prepared.Payload.Kind)
+	smbRequired := false
 	for _, port := range ports {
+		if port == 445 {
+			// The ADMIN$ authorization probe below performs an authenticated
+			// SMB round trip. A preceding raw TCP connect to the SMB listener
+			// can disrupt the Windows redirector's next authenticated UNC open,
+			// so use the protocol-level probe as the reachability evidence.
+			smbRequired = true
+			continue
+		}
 		if err := b.dialPortValue()(ctx, prepared.Target, port); err != nil {
 			addEvidence(&report, "network_surface", false, fmt.Sprintf("TCP %d: %v", port, err))
 			return report, errs.Wrap(errs.Reachability, fmt.Errorf("execution backend: %s is not reachable on TCP %d", prepared.Target, port))
@@ -122,15 +134,11 @@ func (b Backend) Preflight(ctx context.Context, prepared engine.Prepared, creds 
 		switch port {
 		case 135:
 			caps.WMI, caps.DCOM = true, true
-		case 445:
-			caps.SCM = true
 		}
 	}
 	if prepared.Technique.Name == "WSManExec" {
 		caps.WinRM = true
 	}
-	addEvidence(&report, "network_surface", true, fmt.Sprintf("ports %v reachable", ports))
-
 	admin, err := probe.LocalAdmin(ctx, prepared.Target, creds)
 	if err != nil {
 		addEvidence(&report, "administrative_authorization", false, err.Error())
@@ -141,6 +149,10 @@ func (b Backend) Preflight(ctx context.Context, prepared engine.Prepared, creds 
 	if !admin {
 		return report, errs.New(errs.Authorization, "execution backend: identity lacks local administrator on %s", prepared.Target)
 	}
+	if smbRequired {
+		caps.SCM = true
+	}
+	addEvidence(&report, "network_surface", true, fmt.Sprintf("required surfaces %v reachable; SMB validated through ADMIN$", ports))
 
 	svcName := serviceNameOf(prepared)
 	if svcName != "" {

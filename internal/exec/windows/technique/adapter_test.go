@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -99,6 +100,7 @@ type fakeSession struct {
 	providers    map[string]bool
 	providerCOM  map[string]string
 	shells       []string
+	shellErr     error
 	taskRuns     int
 }
 
@@ -177,6 +179,8 @@ func (s *fakeSession) ShellExecute(_ context.Context, path, args string) error {
 	return nil
 }
 
+func (s *fakeSession) ShellAvailable(context.Context) error { return s.shellErr }
+
 func (s *fakeSession) ProcessFind(_ context.Context, imageName, contains string) ([]uint32, error) {
 	var out []uint32
 	for pid, commandLine := range s.processes {
@@ -197,6 +201,24 @@ func (s *fakeSession) ProcessFind(_ context.Context, imageName, contains string)
 func (s *fakeSession) ProcessExists(_ context.Context, pid uint32) (bool, error) {
 	_, ok := s.processes[pid]
 	return ok, nil
+}
+
+func (s *fakeSession) ProcessImage(_ context.Context, pid uint32) (string, error) {
+	command, ok := s.processes[pid]
+	if !ok {
+		return "", errMissing(fmt.Sprintf("process %d", pid))
+	}
+	image, _ := splitCommand(command)
+	return image, nil
+}
+
+func TestDCOMPreflightRequiresAccessibleShellAutomation(t *testing.T) {
+	session := newFakeSession()
+	session.shellErr = errors.New("access denied")
+	_, _, err := (DCOMShellExecute{}).Preflight(context.Background(), session, commandRequest("DCOMIShellDispatch2"))
+	if err == nil || !strings.Contains(err.Error(), "shell automation interface") {
+		t.Fatalf("expected actionable shell automation error, got %v", err)
+	}
 }
 
 func (s *fakeSession) ServiceGet(_ context.Context, name string) (ServiceConfig, error) {
@@ -378,6 +400,8 @@ func TestProcessBoundLauncherPreflightRequiresExistingPID(t *testing.T) {
 		t.Fatal("expected missing process validation error")
 	}
 	session.processes[4242] = `C:\Tools\disposable.exe`
+	session.files[`C:\Tools\disposable.exe`] = peFixture(0x8664)
+	req.Payload = peFixture(0x8664)
 	evidence, _, err := (WMIExec{}).Preflight(ctx, session, req)
 	if err != nil {
 		t.Fatal(err)
@@ -389,6 +413,30 @@ func TestProcessBoundLauncherPreflightRequiresExistingPID(t *testing.T) {
 	if !found {
 		t.Fatal("expected successful launcher_process evidence")
 	}
+}
+
+func TestProcessBoundLauncherPreflightRejectsArchitectureMismatch(t *testing.T) {
+	ctx := shortContext(t)
+	session := newFakeSession()
+	req := fixtureRequest("WMIExec")
+	req.ProcessID = 4242
+	req.Payload = peFixture(0x014c)
+	session.processes[4242] = `C:\Tools\disposable.exe`
+	session.files[`C:\Tools\disposable.exe`] = peFixture(0x8664)
+	_, _, err := (WMIExec{}).Preflight(ctx, session, req)
+	if err == nil || !strings.Contains(err.Error(), "does not match") || !strings.Contains(err.Error(), "x86") || !strings.Contains(err.Error(), "x64") {
+		t.Fatalf("expected actionable architecture mismatch, got %v", err)
+	}
+}
+
+func peFixture(machine uint16) []byte {
+	content := make([]byte, 0x86)
+	content[0], content[1] = 'M', 'Z'
+	content[0x3c] = 0x80
+	copy(content[0x80:], []byte{'P', 'E', 0, 0})
+	content[0x84] = byte(machine)
+	content[0x85] = byte(machine >> 8)
+	return content
 }
 
 func TestTaskSchedDirectCommandDeletesTaskWithoutStaging(t *testing.T) {

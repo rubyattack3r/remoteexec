@@ -1,0 +1,4 @@
+LIBRARY wmi-provider-probe
+EXPORTS
+    DllCanUnloadNow
+    DllGetClassObject

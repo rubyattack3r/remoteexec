@@ -38,11 +38,11 @@ Preflight rejects a missing staging directory, an existing destination file, ins
 
 `Executable` and direct `command` modes are available for `WMIExec`, `WSManExec`, `TaskSchedExec`, and `DCOMIShellDispatch2`. Executable mode stages and launches a local EXE, then reports the staged file for operator recovery. Command mode expects the referenced executable or command to already exist remotely and skips SMB delivery and all staging checks.
 
-See the [LOLBins reference](lolbins.md) for exact selectors, required exports, generated invocations, compatibility boundaries, and detection considerations.
+See the [launcher reference](launchers/index.md) for exact selectors, required exports, generated invocations, compatibility boundaries, and detection considerations.
 
 `SSHExec` supports command payloads only and requires an explicit password or private key. See the [SSH reference](techniques/sshexec.md) for its execution, output, and server-identity boundary.
 
-`SCMCreateService` is the PsExec-style primitive. It stages a service executable, creates and starts a temporary SCM service named by `--service-name`, and then stops/deletes that service and removes the file. It implements the mechanism natively and does not bundle or invoke Microsoft's PsExec utility.
+`SCMCreateService` is the PsExec-style primitive. It stages a service executable, then creates and starts a temporary SCM service named by `--service-name`. The result records both artifacts; remoteexec leaves the service and file in place for explicit operator recovery. It implements the mechanism natively and does not bundle or invoke Microsoft's PsExec utility.
 
 remoteexec reports the artifacts it creates but does not automatically remove or restore them. A user-supplied command can create files, processes, accounts, registry values, or other state that remoteexec cannot infer. Operators are responsible for retaining output and reversing desired side effects within the engagement plan.
 

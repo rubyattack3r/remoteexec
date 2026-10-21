@@ -34,4 +34,4 @@ Remove the staged file after execution when a file payload was selected. Command
 
 ## Detection considerations
 
-Relative detectability: **medium**. WinRM operational logs and process telemetry are mature. Command mode avoids SMB, DLL-load, and LOLBAS signals, but shell creation and the executed command remain detectable.
+WinRM operational logs and process telemetry are mature. Command mode avoids SMB, DLL-load, and LOLBAS signals, but shell creation and the executed command remain detectable.
