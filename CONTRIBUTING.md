@@ -6,4 +6,4 @@ Create a focused branch, run `make verify`, and include tests and documentation.
 
 New execution transports belong under `internal/exec/<platform-or-transport>`. Keep protocol or native API details inside that feature package and expose only shared plans, results, and validation errors to the execution engine. See the [architecture guide](docs/architecture.md) before adding a backend.
 
-Reusable benign live-test fixture sources belong under [`testdata/`](testdata/windows/README.md) and must have deterministic, documented side effects. Do not commit compiled fixtures, operational payloads, credentials, target configuration or identifiers, generated keys, logs, or live-test results; keep them under `.local/`.
+Reusable benign live-test fixture sources belong under [`testdata/`](testdata/windows/README.md) and must have deterministic, documented side effects. Do not commit compiled fixtures, operational payloads, target configuration or identifiers, generated keys, logs, or live-test results; keep disposable material under `.scratch/`. Supply credentials through an approved local secret mechanism rather than treating a gitignored directory as a secret store.

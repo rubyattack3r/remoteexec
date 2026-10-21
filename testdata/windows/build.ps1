@@ -9,7 +9,7 @@ Set-StrictMode -Version Latest
 $FixtureRoot = $PSScriptRoot
 $RepositoryRoot = (Resolve-Path (Join-Path $FixtureRoot "../..")).Path
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-    $OutputDirectory = Join-Path $RepositoryRoot ".local/fixtures/bin"
+    $OutputDirectory = Join-Path $RepositoryRoot ".scratch/fixtures/bin"
 }
 $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null

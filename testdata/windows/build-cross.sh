@@ -3,7 +3,7 @@ set -euo pipefail
 
 fixture_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd "${fixture_root}/../.." && pwd)"
-output_directory="${1:-${repository_root}/.local/fixtures/bin}"
+output_directory="${1:-${repository_root}/.scratch/fixtures/bin}"
 
 mkdir -p "${output_directory}"
 

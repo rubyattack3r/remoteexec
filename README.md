@@ -17,6 +17,8 @@ remoteexec wraps remote-execution primitives in a single CLI. Windows is the mai
 
 ![remoteexec validating a WMIExec plan in dry-run mode](docs/assets/demo.gif)
 
+The demo performs a no-change WMIExec preflight and emits the shared `0.2.0` execution and recovery result contract.
+
 ## Execution model
 
 Windows builds include the native WMI, WinRM, DCOM, Task Scheduler, and SCM execution backend. Linux and macOS builds include `SSHExec`; Windows builds can also use `SSHExec` against OpenSSH targets. Use `--dry-run` when you want prerequisite validation and a plan without staging or executing a payload.

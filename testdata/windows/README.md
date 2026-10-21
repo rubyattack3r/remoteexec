@@ -2,7 +2,7 @@
 
 These fixtures exercise remoteexec's payload and launcher contracts without embedding an assessment payload. They only write deterministic marker files or return an exit status. They do not open a shell, make network connections, collect data, or establish persistence.
 
-Source is committed so contract validation is reproducible. Compiled fixtures, generated signing keys, target details, credentials, runner scripts, logs, and results must remain under `.local/` and must not be committed.
+Source is committed so contract validation is reproducible. Compiled fixtures, generated signing keys, target details, runner scripts, logs, and results must remain under `.scratch/` and must not be committed. Supply credentials through an approved local secret mechanism; a gitignored directory is not a secret store.
 
 ## Layout
 
@@ -25,10 +25,10 @@ The full builder requires Go, the Visual Studio x64 C++ toolchain, and the x64 .
 .\testdata\windows\build.ps1
 ```
 
-Output defaults to `.local/fixtures/bin`. To use a different ignored directory:
+Output defaults to `.scratch/fixtures/bin`. To use a different ignored directory:
 
 ```powershell
-.\testdata\windows\build.ps1 -OutputDirectory .local\fixtures\custom
+.\testdata\windows\build.ps1 -OutputDirectory .scratch\fixtures\custom
 ```
 
 ## Cross-build native fixtures
