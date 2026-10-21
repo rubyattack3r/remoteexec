@@ -7,7 +7,7 @@ Require remoteexec.exe
 Require powershell
 
 Set Shell "powershell"
-Set FontFamily "JetBrains Mono"
+Set FontFamily "DejaVu Sans Mono"
 Set FontSize 22
 Set Width 1800
 Set Height 900
