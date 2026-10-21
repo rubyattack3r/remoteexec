@@ -1,7 +1,7 @@
 # Run from an authorized Windows operator host with `make demo` after placing
 # `remoteexec.exe` on PATH and configuring token access to `wks01`.
 # Dispatches a benign command through WMIExec and shows the returned evidence.
-Output docs/assets/demo.gif
+Output docs/assets/windows-wmiexec-demo.gif
 
 Require remoteexec.exe
 Require powershell
